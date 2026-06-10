@@ -217,6 +217,7 @@ widgetsEl.addEventListener("dragstart", function(e){
   try{ e.dataTransfer.setData("text/plain", dragW.getAttribute("data-w")); }catch(_){}
   try{ e.dataTransfer.setDragImage(dragW, 28, 16); }catch(_){}
   widgetsEl.classList.add("dragging-active");
+  document.body.classList.add("no-select");
   wLastMove=null;
   setTimeout(function(){ if(dragW) dragW.classList.add("draggingw"); },0);
 });
@@ -232,7 +233,7 @@ widgetsEl.addEventListener("dragover", function(e){
   if(moved) wLastMove={x:e.clientX,y:e.clientY};
 });
 widgetsEl.addEventListener("drop", function(e){ if(dragW) e.preventDefault(); });
-widgetsEl.addEventListener("dragend", function(){ if(dragW) dragW.classList.remove("draggingw"); widgetsEl.classList.remove("dragging-active"); commitWidgetOrder(); dragW=null; wLastMove=null; });
+widgetsEl.addEventListener("dragend", function(){ if(dragW) dragW.classList.remove("draggingw"); widgetsEl.classList.remove("dragging-active"); document.body.classList.remove("no-select"); commitWidgetOrder(); dragW=null; wLastMove=null; });
 // 先按行定位，再在行内按 X 轴判定插入点 — 比“最近中心点”更符合直觉
 function widgetAfter(x,y){
   var els=$all(".widget:not(.draggingw)",widgetsEl);

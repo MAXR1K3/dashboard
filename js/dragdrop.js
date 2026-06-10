@@ -22,6 +22,9 @@ function startCardPointerDrag(e,card,grip){
   card.classList.add("dragging");
   card.style.width=r.width+"px"; card.style.height=r.height+"px"; card.style.left=r.left+"px"; card.style.top=r.top+"px";
   gridEl.classList.add("dragging-active");
+  // 拖拽期间全局禁选并清掉已有选区，避免触屏/桌面拖动时选中文本
+  document.body.classList.add("no-select");
+  try{ var s=window.getSelection&&window.getSelection(); if(s&&s.removeAllRanges) s.removeAllRanges(); }catch(_){}
   try{ grip.setPointerCapture(e.pointerId); }catch(_){}
   window.addEventListener("pointermove", onCardPointerMove, {passive:false});
   window.addEventListener("pointerup", endCardPointerDrag, {once:true});
@@ -94,6 +97,7 @@ function finishCardPointerDrag(shouldCommit){
   }
   if(dragPh&&dragPh.parentNode) dragPh.parentNode.removeChild(dragPh);
   if(gridEl) gridEl.classList.remove("dragging-active");
+  document.body.classList.remove("no-select");
   if(shouldCommit&&dragMoved) commitOrderFromDom();
   dragEl=null; dragPh=null; dragMoved=false; dragPointer=null; dragPoint=null; dragLastMove=null;
 }

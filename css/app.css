@@ -99,9 +99,17 @@
   .widgets-head .spacer{ flex:1; }
   .widgets-head .mini-link{ font-size:12.5px; color:var(--text-faint); background:none; border:0; cursor:pointer; display:inline-flex; align-items:center; gap:6px; font-weight:600; }
   .widgets-head .mini-link:hover{ color:var(--accent); } .widgets-head .mini-link svg{ width:15px; height:15px; }
-  /* Adaptive widget grid — columns fit the available width automatically, no manual sizing */
-  .widgets{ display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; align-items:stretch; grid-auto-flow:dense; }
-  @media(max-width:680px){ .widgets{ grid-template-columns:minmax(0,1fr); } }
+  /* Adaptive widget grid — auto-fit 让组件随容器宽度自动增减列数并填满整行，min(100%,272px) 防窄屏溢出 */
+  .widgets{ display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,272px),1fr)); gap:14px; align-items:stretch; grid-auto-flow:dense; }
+  @media(max-width:900px){ .widgets{ gap:12px; } }
+  @media(max-width:680px){
+    .widgets{ grid-template-columns:minmax(0,1fr); gap:10px; }
+    /* 手机单列：高度跟随内容，不再强行撑到桌面端的固定高度 */
+    .widget{ min-height:0; padding:14px; }
+    .widget[data-w="calendar"]{ min-height:0; }
+    .widget:hover{ transform:none; }
+    .mini-list{ justify-content:flex-start; }
+  }
   .widgets.hidden{ display:none; }
   .widget{ position:relative; display:flex; flex-direction:column; min-height:272px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow-card); animation:gentleIn .55s var(--ease) both; min-width:0; transition:transform .24s var(--ease), box-shadow .24s var(--ease), border-color .2s, background .2s; }
   .widget:hover{ transform:translateY(-4px); box-shadow:var(--shadow-pop),0 0 0 1px var(--accent-soft); border-color:var(--border-strong); }
@@ -417,10 +425,11 @@
 .sel{ height:32px; border-radius:9px; border:1px solid var(--border); background:var(--surface-2); color:var(--text); padding:0 8px; font-size:12.5px; outline:none; }
 .min0{ min-width:0; }
 
-.hdot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:baseline; flex:0 0 auto; }
-.hdot.ok{ background:#22c55e; box-shadow:0 0 0 3px rgba(34,197,94,.15); }
-.hdot.bad{ background:#ef4444; box-shadow:0 0 0 3px rgba(239,68,68,.15); }
-.hdot.warn{ background:#f59e0b; box-shadow:0 0 0 3px rgba(245,158,11,.15); }
+/* 状态点：放弃外扩 box-shadow（会被 .name 的 overflow:hidden 裁切显得偏移），改为纯色点 + 垂直居中微调 */
+.hdot{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:middle; position:relative; top:-1px; flex:0 0 auto; }
+.hdot.ok{ background:#22c55e; }
+.hdot.bad{ background:#ef4444; }
+.hdot.warn{ background:#f59e0b; }
 .hdot.unknown{ background:var(--text-faint); }
 
 .tag-chip{ display:inline-block; margin:7px 0 0 5px; font-size:10.5px; font-weight:700; letter-spacing:.2px; padding:2px 8px; border-radius:999px; background:var(--surface-2); color:var(--text-faint); border:1px solid var(--border); }
@@ -447,3 +456,23 @@
 .schip.cur{ background:var(--surface-3); color:var(--text-soft); }
 .schip.new{ background:var(--accent-soft); color:var(--accent); }
 .sarr{ margin:5px 6px 0; color:var(--text-faint); font-weight:700; }
+
+/* ===== 触屏与跨平台显示修正 ===== */
+/* 拖拽手柄：禁用触摸滚动接管与文本选中，手机拖卡片不再选中文字/弹出长按菜单 */
+.card-grip,.w-grip,.widget .w-head,.cat-grip{
+  touch-action:none;
+  user-select:none; -webkit-user-select:none;
+  -webkit-touch-callout:none;
+}
+.card,.tab,.drawer-item,.mini,.btn,.menu button{ -webkit-tap-highlight-color:transparent; }
+/* 拖拽进行中：全局禁选，防止指针扫过文字时高亮 */
+body.no-select, body.no-select *{ user-select:none !important; -webkit-user-select:none !important; -webkit-touch-callout:none !important; }
+/* 触屏设备没有 hover，常驻显示拖拽手柄与卡片操作按钮 */
+@media (hover:none){
+  .card-grip{ opacity:.5; }
+  .w-grip{ opacity:.5; }
+  .card .card-actions{ opacity:1; }
+}
+/* 图标防裁切：所有按钮/菜单内 svg 不参与 flex 压缩，保持自身尺寸 */
+button svg, .menu button svg, .btn svg, .toast svg{ flex:0 0 auto; min-width:0; }
+.toast svg{ width:17px; height:17px; }
