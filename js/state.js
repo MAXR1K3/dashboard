@@ -15,7 +15,8 @@ function defaults(){
       widgetSize:{ clock:1, search:2, weather:1, calendar:1, frequent:1, recent:1 },
       weather:null, weatherUnit:"c", searchEngine:"google", engineUsage:{},
       chromeSync:false, chromeSyncLastSync:0, chromeSyncCount:0,
-      trashRetention:7, aiProvider:"local", aiKey:""
+      trashRetention:7, aiProvider:"local", aiKey:"",
+      glass:true, glassOpacity:45, refraction:true, background:{ type:"gradient", live:"aurora", image:null }
     }
   };
 }

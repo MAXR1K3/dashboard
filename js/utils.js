@@ -19,7 +19,7 @@ function faviconUrl(u){ var d=getDomain(u); if(!d) return ""; return "https://ww
 function hashHue(s){ var h=0; s=s||""; for(var i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))%360; } return h; }
 function byId(id){ for(var i=0;i<state.bookmarks.length;i++){ if(state.bookmarks[i].id===id) return state.bookmarks[i]; } return null; }
 
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); return true; }catch(e){ return false; } }
 function load(){
   var raw=null; try{ raw=localStorage.getItem(KEY)||localStorage.getItem("navi.dashboard.v2"); }catch(e){}
   if(raw){ try{ var s=JSON.parse(raw); if(s&&Array.isArray(s.bookmarks)){
@@ -30,6 +30,7 @@ function load(){
     state.settings=Object.assign({}, d.settings, s.settings||{});
     state.settings.widgets=Object.assign({}, d.settings.widgets, (s.settings&&s.settings.widgets)||{});
     state.settings.widgetSize=Object.assign({}, d.settings.widgetSize, (s.settings&&s.settings.widgetSize)||{});
+    state.settings.background=Object.assign({}, d.settings.background, (s.settings&&s.settings.background)||{});
     if(!Array.isArray(state.settings.widgetOrder)) state.settings.widgetOrder=d.settings.widgetOrder.slice();
     normalizeWidgetOrder();
     rebuildCategories(); return;

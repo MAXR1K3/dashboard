@@ -14,7 +14,7 @@ function render(){
   $("#viewBtn").innerHTML = viewBtnIcon();
   // Fallback dropdown -> tabs (dropdown option removed)
   if(state.settings.categoryLayout==="dropdown"){ state.settings.categoryLayout="tabs"; save(); }
-  applyAnim(); renderBrand(); renderWidgets(); renderCategories(); renderContent();
+  applyGlass(); applyBackground(); applyAnim(); renderBrand(); renderWidgets(); renderCategories(); renderContent();
 }
 
 /* ----- categories (tabs / drawer / dropdown) ----- */

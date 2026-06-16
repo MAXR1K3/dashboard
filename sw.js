@@ -2,7 +2,7 @@
    改动任何 js/css 后请把 CACHE 版本号 +1，用户下次打开即自动更新。 */
 "use strict";
 
-var CACHE = "navi-v2";
+var CACHE = "navi-v5";
 var SHELL = [
   "./",
   "./index.html",
@@ -25,6 +25,7 @@ var SHELL = [
   "./js/trash.js",
   "./js/health.js",
   "./js/suggest.js",
+  "./js/background.js",
   "./js/pwa.js",
   "./js/app.js",
   "./icons/icon-192.png",

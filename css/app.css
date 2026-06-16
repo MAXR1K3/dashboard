@@ -4,6 +4,8 @@
     --shadow-card:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
     --shadow-pop:0 12px 40px rgba(16,24,40,.18);
     --ease:cubic-bezier(.2,.8,.2,1);
+    /* liquid-glass controls (overridden at runtime by the opacity slider) */
+    --glass-blur:18px; --card-blur:9px; --glass-sat:180%; --glass-a:.42;
   }
   [data-theme="light"]{
     --bg:#f3f4fb; --bg-grad-1:#eef0ff; --bg-grad-2:#f7f0ff;
@@ -11,6 +13,12 @@
     --border:#e6e8f0; --border-strong:#d6d9e6;
     --text:#1b1f2a; --text-soft:#5b6172; --text-faint:#8a90a2;
     --danger:#e5484d; --danger-soft:rgba(229,72,77,.12); --header-bg:rgba(255,255,255,.72);
+    /* glass tokens — alpha driven by --glass-a so opacity is adjustable */
+    --g-tint:255,255,255;
+    --g-surface:rgba(var(--g-tint),var(--glass-a)); --g-surface-2:rgba(var(--g-tint),calc(var(--glass-a)*.78)); --g-surface-3:rgba(var(--g-tint),calc(var(--glass-a)*.58));
+    --g-border:rgba(255,255,255,.55); --g-border-strong:rgba(255,255,255,.85); --g-header:rgba(var(--g-tint),calc(var(--glass-a)*.92));
+    --glass-hl:rgba(255,255,255,.75); --glass-hl-2:rgba(255,255,255,.30); --glass-edge:rgba(255,255,255,.10);
+    --bg-scrim:linear-gradient(180deg,rgba(243,244,251,.26),rgba(243,244,251,.48));
   }
   [data-theme="dark"]{
     --bg:#0c0d14; --bg-grad-1:#14132a; --bg-grad-2:#1a1230;
@@ -21,18 +29,141 @@
     --accent-soft:rgba(122,110,255,.18);
     --shadow-card:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.35);
     --shadow-pop:0 16px 50px rgba(0,0,0,.55);
+    /* glass tokens — alpha driven by --glass-a so opacity is adjustable */
+    --g-tint:34,37,50;
+    --g-surface:rgba(var(--g-tint),calc(var(--glass-a) + .12)); --g-surface-2:rgba(var(--g-tint),calc(var(--glass-a) + .04)); --g-surface-3:rgba(var(--g-tint),var(--glass-a));
+    --g-border:rgba(255,255,255,.14); --g-border-strong:rgba(255,255,255,.24); --g-header:rgba(16,18,26,calc(var(--glass-a) + .14));
+    --glass-hl:rgba(255,255,255,.22); --glass-hl-2:rgba(255,255,255,.08); --glass-edge:rgba(255,255,255,.05);
+    --bg-scrim:linear-gradient(180deg,rgba(8,9,14,.38),rgba(8,9,14,.60));
   }
   *{ box-sizing:border-box; }
   html,body{ height:100%; }
   body{
     margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"PingFang SC","Microsoft YaHei",Helvetica,Arial,sans-serif;
     color:var(--text);
-    background:radial-gradient(1200px 600px at 12% -10%,var(--bg-grad-1),transparent 60%),radial-gradient(1000px 600px at 100% 0%,var(--bg-grad-2),transparent 55%),var(--bg);
-    background-attachment:fixed; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    background:var(--bg);
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
     line-height:1.45; letter-spacing:-.01em;
     transition:background-color .3s var(--ease),color .3s var(--ease);
   }
   ::selection{ background:var(--accent-soft); }
+
+  /* ===== Background layer + dynamic wallpapers ===== */
+  #bgLayer{
+    position:fixed; inset:0; z-index:-2; overflow:hidden;
+    background:
+      radial-gradient(1200px 600px at 12% -10%,var(--bg-grad-1),transparent 60%),
+      radial-gradient(1000px 600px at 100% 0%,var(--bg-grad-2),transparent 55%),
+      var(--bg);
+    background-size:cover; background-position:center;
+    transition:opacity .5s var(--ease);
+  }
+  #bgLayer.image{ background-size:cover; background-position:center; background-repeat:no-repeat; }
+  #bgLayer.image::before{ content:""; position:absolute; inset:0; background:var(--bg-scrim); }
+  /* live wallpaper — flowing colour blobs. Motion is GPU-composited transform only
+     (cheap). We deliberately AVOID animating filter/hue-rotate or blurring the blobs,
+     which would force a full-layer repaint every frame behind all the glass panels.
+     Uses !important so it keeps moving even when "page animations" is OFF;
+     OS-level prefers-reduced-motion still freezes it (see media query below). */
+  #bgLayer.live{ background:var(--bg); }
+  #bgLayer.live::before, #bgLayer.live::after{
+    content:""; position:absolute; inset:-30%; background-repeat:no-repeat; will-change:transform;
+  }
+  #bgLayer.live::before{
+    background:
+      radial-gradient(28% 30% at 25% 28%,var(--b1),transparent 60%),
+      radial-gradient(26% 28% at 80% 22%,var(--b2),transparent 62%),
+      radial-gradient(24% 26% at 55% 60%,var(--b3),transparent 60%);
+    animation:blobA 18s ease-in-out infinite !important;
+  }
+  #bgLayer.live::after{
+    background:
+      radial-gradient(32% 34% at 74% 72%,var(--b3),transparent 60%),
+      radial-gradient(26% 28% at 22% 78%,var(--b1),transparent 62%),
+      radial-gradient(22% 24% at 50% 18%,var(--b2),transparent 60%);
+    animation:blobB 23s ease-in-out infinite !important;
+  }
+  @keyframes blobA{
+    0%{ transform:translate(-10%,-8%) scale(1) rotate(0deg); }
+    33%{ transform:translate(12%,6%) scale(1.22) rotate(6deg); }
+    66%{ transform:translate(-6%,12%) scale(1.08) rotate(-4deg); }
+    100%{ transform:translate(-10%,-8%) scale(1) rotate(0deg); }
+  }
+  @keyframes blobB{
+    0%{ transform:translate(10%,8%) scale(1.18) rotate(0deg); }
+    33%{ transform:translate(-12%,-6%) scale(1) rotate(-7deg); }
+    66%{ transform:translate(8%,-10%) scale(1.25) rotate(5deg); }
+    100%{ transform:translate(10%,8%) scale(1.18) rotate(0deg); }
+  }
+  #bgLayer.live-aurora{ --b1:rgba(109,94,252,.60); --b2:rgba(76,201,240,.55); --b3:rgba(182,94,252,.58); }
+  #bgLayer.live-sunset{ --b1:rgba(255,138,91,.60); --b2:rgba(247,110,152,.55); --b3:rgba(255,184,108,.58); }
+  #bgLayer.live-ocean{ --b1:rgba(42,127,255,.60); --b2:rgba(35,213,171,.55); --b3:rgba(94,139,255,.58); }
+  #bgLayer.live-mesh{ --b1:rgba(109,94,252,.60); --b2:rgba(247,110,152,.55); --b3:rgba(35,213,171,.55); }
+
+  /* ===== Liquid glass mode ===== */
+  body.glass{
+    --surface:var(--g-surface); --surface-2:var(--g-surface-2); --surface-3:var(--g-surface-3);
+    --border:var(--g-border); --border-strong:var(--g-border-strong); --header-bg:var(--g-header);
+  }
+  /* PERFORMANCE: backdrop-filter is the costliest part of glass — every filtered
+     element re-blurs the (possibly animating) wallpaper each frame. So we frost only a
+     FEW large panels at full strength, cards at a lighter blur, and give all the
+     numerous small chrome (buttons, pills, tabs, toasts, inputs…) a plain translucent
+     surface with NO backdrop-filter. This keeps scrolling & the live wallpaper smooth. */
+  body.glass .widget, body.glass .modal, body.glass .menu, body.glass .dd-menu,
+  body.glass .drawer-inner, body.glass .selbar{
+    -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(160%);
+    backdrop-filter:blur(var(--glass-blur)) saturate(160%);
+  }
+  body.glass .card{
+    -webkit-backdrop-filter:blur(var(--card-blur)) saturate(150%);
+    backdrop-filter:blur(var(--card-blur)) saturate(150%);
+  }
+  /* Live wallpaper re-blurs every glass panel each frame. With many cards that's the
+     jank source — so drop card frost while the live wallpaper is active (cards stay
+     translucent via --surface). Static gradient/image backgrounds keep the frost. */
+  body.glass.bg-live .card{ -webkit-backdrop-filter:none; backdrop-filter:none; }
+  /* "Light refraction" toggle = cheap CSS sheen (a soft diagonal highlight); no SVG
+     displacement, no extra backdrop sampling. Applied only to the few big panels. */
+  body.glass.refract .widget::before, body.glass.refract .modal::before, body.glass.refract .selbar::before{
+    content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:0;
+    background:linear-gradient(135deg,var(--glass-hl) 0%,rgba(255,255,255,0) 40%);
+    opacity:.5;
+  }
+  /* specular highlight on panels without hover/drag shadow states */
+  body.glass .selbar, body.glass .menu, body.glass .dd-menu, body.glass .drawer-inner, body.glass .modal{
+    box-shadow:var(--shadow-pop), inset 0 1px 0 var(--glass-hl), inset 0 0 0 1px var(--glass-edge);
+  }
+  /* static, cheap glass rim on cards/widgets (box-shadow only — no per-frame cost).
+     .modal already establishes a containing block (transform); .selbar is position:fixed —
+     don't override those, only .widget actually needs relative (.card is already relative). */
+  body.glass .widget{ position:relative; }
+  body.glass .card::after, body.glass .widget::after{
+    content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:0;
+    box-shadow:
+      inset 0 1px 0 var(--glass-hl),
+      inset 1px 0 0 var(--glass-hl-2),
+      inset -1px 0 0 var(--glass-edge),
+      inset 0 -1px 0 var(--glass-edge);
+  }
+  @media(max-width:640px){ body.glass{ --glass-blur:13px; --card-blur:6px; } }
+
+  /* background-style swatches (settings) */
+  .bg-live-row{ display:flex; gap:10px; padding:8px 0 2px; flex-wrap:wrap; }
+  .bg-swatch{ width:56px; height:40px; border-radius:11px; border:2px solid var(--border); cursor:pointer; padding:0; overflow:hidden; position:relative; transition:transform .14s var(--ease),border-color .14s,box-shadow .14s; }
+  .bg-swatch:hover{ transform:translateY(-2px); }
+  .bg-swatch.on{ border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .bg-swatch span{ position:absolute; inset:0; display:block; }
+  .sw-aurora{ background:linear-gradient(135deg,#6d5efc,#4cc9f0,#b65efc); }
+  .sw-sunset{ background:linear-gradient(135deg,#ff8a5b,#f76e98,#ffb86c); }
+  .sw-ocean{ background:linear-gradient(135deg,#2a7fff,#23d5ab,#5e8bff); }
+  .sw-mesh{ background:linear-gradient(135deg,#6d5efc,#f76e98,#23d5ab); }
+  /* opacity slider (settings) */
+  .set-range{ display:flex; align-items:center; gap:12px; flex:0 0 auto; min-width:180px; }
+  .set-range input[type=range]{ flex:1; -webkit-appearance:none; appearance:none; height:6px; border-radius:999px; background:var(--surface-3); border:1px solid var(--border); outline:none; cursor:pointer; }
+  .set-range input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; appearance:none; width:20px; height:20px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); border:2px solid #fff; box-shadow:0 2px 6px rgba(109,94,252,.5); cursor:pointer; }
+  .set-range input[type=range]::-moz-range-thumb{ width:18px; height:18px; border:2px solid #fff; border-radius:50%; background:var(--accent); cursor:pointer; }
+  .set-range .rv{ width:42px; text-align:right; font-size:12px; font-weight:700; color:var(--text-soft); font-variant-numeric:tabular-nums; }
 
   @keyframes pop{ from{opacity:0;transform:translateY(8px) scale(.98);} to{opacity:1;transform:none;} }
   @keyframes slideUp{ from{opacity:0;transform:translateY(16px);} to{opacity:1;transform:none;} }
@@ -47,10 +178,17 @@
   @keyframes sweepIn{ from{opacity:0;transform:translateX(-10px);} to{opacity:1;transform:none;} }
   @keyframes wPulse{ 0%,100%{box-shadow:var(--shadow-card);} 50%{box-shadow:var(--shadow-pop),0 0 0 4px var(--accent-soft);} }
   body.no-anim *{ animation-duration:.001ms !important; animation-delay:0ms !important; transition-duration:.001ms !important; }
-  @media (prefers-reduced-motion: reduce){ *{ animation-duration:.001ms !important; animation-delay:0ms !important; transition-duration:.01ms !important; } }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:.001ms !important; animation-delay:0ms !important; transition-duration:.01ms !important; }
+    /* freeze the live wallpaper too (its animations use !important to survive no-anim) */
+    #bgLayer.live, #bgLayer.live::before, #bgLayer.live::after{ animation:none !important; }
+  }
 
-  /* Header */
-  header{ position:sticky; top:0; z-index:40; backdrop-filter:saturate(180%) blur(16px); -webkit-backdrop-filter:saturate(180%) blur(16px); background:var(--header-bg); border-bottom:1px solid var(--border); }
+  /* Header — blur lives on a ::before pseudo, NOT on <header> itself, so that
+     header is not a containing block for position:fixed children (the mobile
+     bottom action bar is a fixed child and must anchor to the viewport). */
+  header{ position:sticky; top:0; z-index:40; background:transparent; border-bottom:1px solid var(--border); }
+  header::before{ content:""; position:absolute; inset:0; z-index:-1; background:var(--header-bg); -webkit-backdrop-filter:saturate(180%) blur(16px); backdrop-filter:saturate(180%) blur(16px); }
   .header-inner{ max-width:1360px; margin:0 auto; padding:14px 16px; display:grid; grid-template-columns:minmax(176px,228px) minmax(220px,440px) auto; align-items:center; gap:14px; }
   .brand{ display:flex; align-items:center; gap:11px; min-width:0; cursor:pointer; user-select:none; }
   .brand > div:last-child{ min-width:0; }
@@ -80,8 +218,37 @@
   .btn.active{ background:var(--accent-soft); border-color:var(--accent); color:var(--accent); }
   .lang-code{ font-size:11px; font-weight:800; letter-spacing:.5px; }
   @media(max-width:1180px){ .header-inner{ grid-template-columns:minmax(154px,200px) minmax(180px,1fr) auto; gap:12px; } #selectBtn,#importBtn,#addBtn{ width:40px; padding:0; } .btn .lbl{ display:none !important; } }
-  @media(max-width:720px){ .header-inner{ grid-template-columns:minmax(0,1fr) auto; } .search{ display:none; } .brand span{ max-width:160px; } }
-  @media(max-width:460px){ .header-inner{ padding-left:14px; padding-right:14px; gap:10px; } .brand{ gap:8px; } .brand h1{ max-width:92px; } .actions{ gap:6px; } }
+  /* ===== Mobile / PWA: header = brand + search; actions become a bottom bar ===== */
+  @media(max-width:720px){
+    .header-inner{ grid-template-columns:auto minmax(0,1fr); gap:10px; padding:10px 14px; }
+    .search{ display:block; margin:0; }            /* keep search visible (most-used tool) */
+    .brand span{ display:none; }                   /* drop subtitle to save room */
+    .brand h1{ max-width:120px; }
+
+    /* the action row docks to the bottom as a tab bar */
+    .actions{
+      position:fixed; left:0; right:0; bottom:0; z-index:60; margin:0;
+      justify-content:space-around; gap:4px;
+      padding:8px 14px calc(8px + env(safe-area-inset-bottom,0px));
+      background:var(--header-bg); border-top:1px solid var(--border);
+      -webkit-backdrop-filter:saturate(170%) blur(13px); backdrop-filter:saturate(170%) blur(13px);
+    }
+    .actions .btn{ height:46px; }
+    .actions .btn.icon{ width:46px; }
+    #langBtn, #importBtn{ display:none; }           /* lang → Settings · import → More menu */
+    #addBtn{ width:60px; }                          /* primary action, emphasised */
+    .actions .menu{ top:auto; bottom:54px; right:0; }  /* More menu opens upward, above the bar (higher specificity beats base .menu) */
+
+    /* keep page content & floating selection bar clear of the bottom bar */
+    body{ padding-bottom:calc(68px + env(safe-area-inset-bottom,0px)); }
+    main{ padding-bottom:24px; }
+    .selbar{ bottom:calc(72px + env(safe-area-inset-bottom,0px)); }
+  }
+  @media(max-width:460px){
+    .header-inner{ padding:9px 12px; gap:8px; }
+    .brand h1{ max-width:96px; }
+    .actions{ gap:2px; padding-left:8px; padding-right:8px; }
+  }
 
   .menu-wrap{ position:relative; }
   .menu{ position:absolute; right:0; top:48px; min-width:200px; background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow-pop); padding:6px; z-index:60; opacity:0; transform:translateY(-6px) scale(.98); pointer-events:none; transition:opacity .14s var(--ease),transform .14s var(--ease); }
@@ -90,6 +257,8 @@
   .menu button svg{ width:16px; height:16px; color:var(--text-soft); } .menu button:hover{ background:var(--surface-2); }
   .menu button.danger-item{ color:var(--danger); } .menu button.danger-item svg{ color:var(--danger); }
   .menu hr{ border:0; border-top:1px solid var(--border); margin:5px 4px; }
+  .more-only-mobile{ display:none !important; }
+  @media(max-width:720px){ .more-only-mobile{ display:flex !important; } }
 
   /* Widgets */
   .widgets-wrap{ max-width:1360px; margin:0 auto; padding:16px 16px 0; }
