@@ -31,11 +31,32 @@ function load(){
     state.settings.widgets=Object.assign({}, d.settings.widgets, (s.settings&&s.settings.widgets)||{});
     state.settings.widgetSize=Object.assign({}, d.settings.widgetSize, (s.settings&&s.settings.widgetSize)||{});
     state.settings.background=Object.assign({}, d.settings.background, (s.settings&&s.settings.background)||{});
+    if(!(s.settings&&s.settings.motionMode)) state.settings.motionMode=(state.settings.lowPower===false&&state.settings.animations)?"smooth":"low";
     if(!Array.isArray(state.settings.widgetOrder)) state.settings.widgetOrder=d.settings.widgetOrder.slice();
+    var migrated=migratePowerProfile();
     normalizeWidgetOrder();
-    rebuildCategories(); return;
+    rebuildCategories(); if(migrated) save(); return;
   } }catch(e){} }
   seed();
+}
+function migratePowerProfile(){
+  var s=state.settings, changed=false;
+  if(s.motionMode!=="low" && s.motionMode!=="smooth"){
+    s.motionMode=(s.lowPower===false && s.animations)?"smooth":"low";
+    changed=true;
+  }
+  if(s.powerProfileVersion!==POWER_PROFILE_VERSION){
+    if(s.powerProfileVersion==null){
+      s.motionMode="low";
+      s.glass=false;
+      s.refraction=false;
+      if(s.background&&s.background.type==="live") s.background.type="gradient";
+    }
+    syncMotionSettings();
+    s.powerProfileVersion=POWER_PROFILE_VERSION;
+    changed=true;
+  }
+  return changed;
 }
 function normalizeWidgetOrder(){
   var seen={}, o=[];
@@ -84,8 +105,46 @@ function applyI18n(){
   $("#langCode").textContent = LANGCODE[state.settings.lang];
 }
 
-/* ===== brand / anim ===== */
-function applyAnim(){ document.body.classList.toggle("no-anim", !state.settings.animations); }
+/* ===== performance / brand / anim ===== */
+var _scrollPowerTimer=0, _powerGuardsReady=false;
+function currentMotionMode(){ return state.settings.motionMode==="smooth"?"smooth":"low"; }
+function syncMotionSettings(){
+  var smooth=currentMotionMode()==="smooth";
+  state.settings.lowPower=!smooth;
+  state.settings.animations=smooth;
+}
+function setMotionMode(mode){
+  state.settings.motionMode=mode==="smooth"?"smooth":"low";
+  syncMotionSettings();
+  applyPerformanceMode();
+  applyAnim();
+  save();
+  syncMotionUI();
+}
+function syncMotionUI(){
+  var mode=currentMotionMode();
+  $all('#motionSeg [data-motion]').forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-motion")===mode); });
+}
+function applyPerformanceMode(){
+  var mode=currentMotionMode();
+  document.body.classList.toggle("low-power", mode==="low");
+  document.body.classList.toggle("smooth-motion", mode==="smooth");
+}
+function markPowerBusy(){
+  document.body.classList.add("is-scrolling");
+  if(_scrollPowerTimer) clearTimeout(_scrollPowerTimer);
+  _scrollPowerTimer=setTimeout(function(){ document.body.classList.remove("is-scrolling"); _scrollPowerTimer=0; },180);
+}
+function initPerformanceGuards(){
+  if(_powerGuardsReady) return; _powerGuardsReady=true;
+  window.addEventListener("scroll", markPowerBusy, {passive:true,capture:true});
+  window.addEventListener("wheel", markPowerBusy, {passive:true});
+  window.addEventListener("touchmove", markPowerBusy, {passive:true});
+  document.addEventListener("visibilitychange", function(){
+    document.body.classList.toggle("tab-hidden", document.hidden);
+  });
+}
+function applyAnim(){ document.body.classList.toggle("no-anim", currentMotionMode()==="low" || !state.settings.animations); }
 function renderBrand(){
   var s=state.settings;
   $("#brandName").textContent=s.appName||"Navi";

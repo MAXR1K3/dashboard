@@ -2,7 +2,22 @@
 "use strict";
 
 /* ===== settings ===== */
-function openSettings(){ var s=state.settings; $("#setName").value=s.appName||""; $("#setTag").value=s.tagline||""; $("#setAnim").checked=!!s.animations; $("#setSeconds").checked=!!s.clockSeconds; $("#setHolidays").checked=s.showHolidays!==false; $("#setLogoPreview").innerHTML=s.logo?'<img src="'+escapeHtml(s.logo)+'" alt=""/>':ICONS.bookmark; $all('[data-widget]').forEach(function(cb){ cb.checked=!!s.widgets[cb.getAttribute("data-widget")]; }); $all('#langSeg [data-lang]').forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-lang")===s.lang); }); $all('#catLayoutSeg [data-layout]').forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-layout")===s.categoryLayout); }); $("#setAiKey").value=s.aiKey||""; $all('#aiProvSeg [data-aiprov]').forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-aiprov")===(s.aiProvider||"local")); }); $("#setGlass").checked=s.glass!==false; syncBgUI(); updateSyncUI(); openOverlay("settingsOverlay"); }
+function openSettings(){
+  var s=state.settings;
+  $("#setName").value=s.appName||"";
+  $("#setTag").value=s.tagline||"";
+  syncMotionUI();
+  $("#setSeconds").checked=!!s.clockSeconds;
+  $("#setHolidays").checked=s.showHolidays!==false;
+  $("#setLogoPreview").innerHTML=s.logo?'<img src="'+escapeHtml(s.logo)+'" alt=""/>':ICONS.bookmark;
+  $all('[data-widget]').forEach(function(cb){ cb.checked=!!s.widgets[cb.getAttribute("data-widget")]; });
+  $all('#langSeg [data-lang]').forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-lang")===s.lang); });
+  $all('#catLayoutSeg [data-layout]').forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-layout")===s.categoryLayout); });
+  $("#setAiKey").value=s.aiKey||"";
+  $all('#aiProvSeg [data-aiprov]').forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-aiprov")===(s.aiProvider||"local")); });
+  $("#setGlass").checked=s.glass!==false;
+  syncBgUI(); updateSyncUI(); openOverlay("settingsOverlay");
+}
 
 /* AI 建议引擎设置 */
 $("#aiProvSeg").addEventListener("click", function(e){
@@ -14,8 +29,8 @@ $("#setAiKey").addEventListener("input", function(e){ state.settings.aiKey=e.tar
 $("#settingsBtn").addEventListener("click", openSettings); $("#customizeWidgets").addEventListener("click", openSettings); $("#brand").addEventListener("click", openSettings);
 $("#setName").addEventListener("input", function(e){ state.settings.appName=e.target.value; renderBrand(); save(); });
 $("#setTag").addEventListener("input", function(e){ state.settings.tagline=e.target.value; renderBrand(); save(); });
-$("#setAnim").addEventListener("change", function(e){ state.settings.animations=e.target.checked; applyAnim(); save(); });
-$("#setSeconds").addEventListener("change", function(e){ state.settings.clockSeconds=e.target.checked; save(); tickClock(); });
+$("#motionSeg").addEventListener("click", function(e){ var b=e.target.closest("[data-motion]"); if(!b) return; setMotionMode(b.getAttribute("data-motion")); });
+$("#setSeconds").addEventListener("change", function(e){ state.settings.clockSeconds=e.target.checked; save(); startClockTimer(); });
 $("#setHolidays").addEventListener("change", function(e){ state.settings.showHolidays=e.target.checked; save(); refreshCalDom(); });
 $all('[data-widget]').forEach(function(cb){ cb.addEventListener("change", function(){ state.settings.widgets[cb.getAttribute("data-widget")]=cb.checked; save(); renderWidgets(); }); });
 $("#langSeg").addEventListener("click", function(e){ var b=e.target.closest("[data-lang]"); if(!b) return; setLang(b.getAttribute("data-lang")); $all('#langSeg [data-lang]').forEach(function(x){ x.classList.toggle("on", x===b); }); });

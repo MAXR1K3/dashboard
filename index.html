@@ -164,7 +164,9 @@
             <div class="logo-row"><div class="logo-preview" id="setLogoPreview"></div><div class="info"><div class="t" data-i18n="logo">Logo</div><div class="d" data-i18n="logoDesc">PNG, JPG or SVG</div></div></div>
             <div style="display:flex; gap:8px;"><button class="btn" id="setLogoUpload" data-i18n="upload">Upload</button><button class="btn" id="setLogoRemove" title="Reset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button></div>
           </div>
-          <div class="set-row"><div class="info"><div class="t" data-i18n="animations">Page animations</div><div class="d" data-i18n="animationsDesc">Smooth entrances and transitions</div></div><label class="switch"><input type="checkbox" id="setAnim"><span class="track"></span></label></div>
+          <div class="set-row"><div class="info"><div class="t" data-i18n="motionProfile">Motion profile</div><div class="d" data-i18n="motionProfileDesc">Choose battery-first or smooth low-cost animation</div></div>
+            <div class="seg sm motion-seg" id="motionSeg"><button data-motion="low" data-i18n="motionLow">Low power</button><button data-motion="smooth" data-i18n="motionSmooth">Smooth</button></div>
+          </div>
           <div class="set-row"><div class="info"><div class="t" data-i18n="glassEffect">Liquid glass</div><div class="d" data-i18n="glassEffectDesc">Frosted, translucent panels</div></div><label class="switch"><input type="checkbox" id="setGlass"><span class="track"></span></label></div>
           <div class="set-row" id="glassOpacityRow"><div class="info"><div class="t" data-i18n="glassOpacity">Glass opacity</div><div class="d" data-i18n="glassOpacityDesc">Lower = more see-through</div></div>
             <div class="set-range"><input type="range" id="setGlassOpacity" min="8" max="85" step="1" /><span class="rv" id="glassOpacityVal">45%</span></div>

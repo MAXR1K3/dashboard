@@ -3,12 +3,13 @@
 
 /* ===== state ===== */
 var KEY = "navi.dashboard.v3";
+var POWER_PROFILE_VERSION = 2;
 var WKEYS = ["clock","search","weather","calendar","frequent","recent"];
 function defaults(){
   return {
     bookmarks:[], categories:[], trash:[], theme:"light", view:"grid",
     settings:{
-      appName:"Navi", tagline:"", logo:null, lang:"en", animations:true,
+      appName:"Navi", tagline:"", logo:null, lang:"en", motionMode:"low", lowPower:true, animations:false,
       widgetsCollapsed:false, widgetsHidden:false, clockSeconds:false, showHolidays:true, categoryLayout:"tabs",
       widgets:{ clock:true, search:true, weather:true, calendar:true, frequent:true, recent:true },
       widgetOrder:["clock","search","weather","calendar","frequent","recent"],
@@ -16,7 +17,8 @@ function defaults(){
       weather:null, weatherUnit:"c", searchEngine:"google", engineUsage:{},
       chromeSync:false, chromeSyncLastSync:0, chromeSyncCount:0,
       trashRetention:7, aiProvider:"local", aiKey:"",
-      glass:true, glassOpacity:45, refraction:true, background:{ type:"gradient", live:"aurora", image:null }
+      glass:false, glassOpacity:45, refraction:false, background:{ type:"gradient", live:"aurora", image:null },
+      powerProfileVersion:POWER_PROFILE_VERSION
     }
   };
 }

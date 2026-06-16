@@ -60,11 +60,8 @@
   }
   #bgLayer.image{ background-size:cover; background-position:center; background-repeat:no-repeat; }
   #bgLayer.image::before{ content:""; position:absolute; inset:0; background:var(--bg-scrim); }
-  /* live wallpaper — flowing colour blobs. Motion is GPU-composited transform only
-     (cheap). We deliberately AVOID animating filter/hue-rotate or blurring the blobs,
-     which would force a full-layer repaint every frame behind all the glass panels.
-     Uses !important so it keeps moving even when "page animations" is OFF;
-     OS-level prefers-reduced-motion still freezes it (see media query below). */
+  /* live wallpaper — flowing colour blobs. It stays opt-in and is frozen by
+     low-power, no-animation, scrolling, and reduced-motion states. */
   #bgLayer.live{ background:var(--bg); }
   #bgLayer.live::before, #bgLayer.live::after{
     content:""; position:absolute; inset:-30%; background-repeat:no-repeat; will-change:transform;
@@ -105,24 +102,21 @@
     --surface:var(--g-surface); --surface-2:var(--g-surface-2); --surface-3:var(--g-surface-3);
     --border:var(--g-border); --border-strong:var(--g-border-strong); --header-bg:var(--g-header);
   }
-  /* PERFORMANCE: backdrop-filter is the costliest part of glass — every filtered
-     element re-blurs the (possibly animating) wallpaper each frame. So we frost only a
-     FEW large panels at full strength, cards at a lighter blur, and give all the
-     numerous small chrome (buttons, pills, tabs, toasts, inputs…) a plain translucent
-     surface with NO backdrop-filter. This keeps scrolling & the live wallpaper smooth. */
-  body.glass .widget, body.glass .modal, body.glass .menu, body.glass .dd-menu,
-  body.glass .drawer-inner, body.glass .selbar{
+  /* PERFORMANCE: backdrop-filter is the costliest part of glass. Cards never use it;
+     only a few large panels keep frost when low-power mode is off. */
+  body.glass:not(.low-power):not(.smooth-motion) .widget,
+  body.glass:not(.low-power):not(.smooth-motion) .modal,
+  body.glass:not(.low-power):not(.smooth-motion) .menu,
+  body.glass:not(.low-power):not(.smooth-motion) .dd-menu,
+  body.glass:not(.low-power):not(.smooth-motion) .drawer-inner,
+  body.glass:not(.low-power):not(.smooth-motion) .selbar{
     -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(160%);
     backdrop-filter:blur(var(--glass-blur)) saturate(160%);
   }
   body.glass .card{
-    -webkit-backdrop-filter:blur(var(--card-blur)) saturate(150%);
-    backdrop-filter:blur(var(--card-blur)) saturate(150%);
+    -webkit-backdrop-filter:none;
+    backdrop-filter:none;
   }
-  /* Live wallpaper re-blurs every glass panel each frame. With many cards that's the
-     jank source — so drop card frost while the live wallpaper is active (cards stay
-     translucent via --surface). Static gradient/image backgrounds keep the frost. */
-  body.glass.bg-live .card{ -webkit-backdrop-filter:none; backdrop-filter:none; }
   /* "Light refraction" toggle = cheap CSS sheen (a soft diagonal highlight); no SVG
      displacement, no extra backdrop sampling. Applied only to the few big panels. */
   body.glass.refract .widget::before, body.glass.refract .modal::before, body.glass.refract .selbar::before{
@@ -164,6 +158,7 @@
   .set-range input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; appearance:none; width:20px; height:20px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); border:2px solid #fff; box-shadow:0 2px 6px rgba(109,94,252,.5); cursor:pointer; }
   .set-range input[type=range]::-moz-range-thumb{ width:18px; height:18px; border:2px solid #fff; border-radius:50%; background:var(--accent); cursor:pointer; }
   .set-range .rv{ width:42px; text-align:right; font-size:12px; font-weight:700; color:var(--text-soft); font-variant-numeric:tabular-nums; }
+  .motion-seg{ min-width:188px; }
 
   @keyframes pop{ from{opacity:0;transform:translateY(8px) scale(.98);} to{opacity:1;transform:none;} }
   @keyframes slideUp{ from{opacity:0;transform:translateY(16px);} to{opacity:1;transform:none;} }
@@ -177,11 +172,136 @@
   @keyframes chipIn{ from{opacity:0;transform:scale(.82) translateY(4px);} to{opacity:1;transform:none;} }
   @keyframes sweepIn{ from{opacity:0;transform:translateX(-10px);} to{opacity:1;transform:none;} }
   @keyframes wPulse{ 0%,100%{box-shadow:var(--shadow-card);} 50%{box-shadow:var(--shadow-pop),0 0 0 4px var(--accent-soft);} }
-  body.no-anim *{ animation-duration:.001ms !important; animation-delay:0ms !important; transition-duration:.001ms !important; }
+  body.no-anim *, body.no-anim *::before, body.no-anim *::after{
+    animation:none !important;
+    transition:none !important;
+    scroll-behavior:auto !important;
+  }
   @media (prefers-reduced-motion: reduce){
-    *{ animation-duration:.001ms !important; animation-delay:0ms !important; transition-duration:.01ms !important; }
-    /* freeze the live wallpaper too (its animations use !important to survive no-anim) */
-    #bgLayer.live, #bgLayer.live::before, #bgLayer.live::after{ animation:none !important; }
+    *, *::before, *::after{
+      animation:none !important;
+      transition:none !important;
+      scroll-behavior:auto !important;
+    }
+    #bgLayer.live::before, #bgLayer.live::after{
+      animation:none !important;
+      transform:none !important;
+      will-change:auto;
+    }
+  }
+
+  body.low-power{
+    --shadow-card:0 1px 2px rgba(16,24,40,.06);
+    --shadow-pop:0 8px 24px rgba(16,24,40,.14);
+    transition:none;
+  }
+  [data-theme="dark"] body.low-power{
+    --shadow-card:0 1px 2px rgba(0,0,0,.34);
+    --shadow-pop:0 10px 30px rgba(0,0,0,.45);
+  }
+  body.low-power *, body.low-power *::before, body.low-power *::after{
+    animation:none !important;
+    transition:none !important;
+    scroll-behavior:auto !important;
+  }
+  body.low-power #bgLayer{ transition:none; }
+  body.low-power #bgLayer.live::before,
+  body.low-power #bgLayer.live::after,
+  body.no-anim #bgLayer.live::before,
+  body.no-anim #bgLayer.live::after,
+  body.tab-hidden #bgLayer.live::before,
+  body.tab-hidden #bgLayer.live::after{
+    animation:none !important;
+    transform:none !important;
+    will-change:auto;
+  }
+  body.low-power header::before,
+  body.low-power .actions,
+  body.low-power .widget,
+  body.low-power .modal,
+  body.low-power .menu,
+  body.low-power .dd-menu,
+  body.low-power .drawer-inner,
+  body.low-power .selbar,
+  body.low-power .overlay,
+  body.low-power .drawer-backdrop.show{
+    -webkit-backdrop-filter:none !important;
+    backdrop-filter:none !important;
+  }
+  body.low-power .card:hover,
+  body.low-power .widget:hover,
+  body.low-power .mini:hover,
+  body.low-power .tab:hover,
+  body.low-power .drawer-item:hover,
+  body.low-power .engine-pill:hover,
+  body.low-power .btn:hover,
+  body.low-power .btn:active,
+  body.low-power .card-grip:hover,
+  body.low-power .card-grip:active{
+    transform:none !important;
+    filter:none !important;
+  }
+  body.smooth-motion{
+    --shadow-card:0 1px 2px rgba(16,24,40,.06),0 6px 18px rgba(16,24,40,.055);
+    --shadow-pop:0 10px 30px rgba(16,24,40,.14);
+  }
+  [data-theme="dark"] body.smooth-motion{
+    --shadow-card:0 1px 2px rgba(0,0,0,.34),0 8px 22px rgba(0,0,0,.28);
+    --shadow-pop:0 12px 36px rgba(0,0,0,.44);
+  }
+  body.smooth-motion header::before,
+  body.smooth-motion .actions,
+  body.smooth-motion .widget,
+  body.smooth-motion .modal,
+  body.smooth-motion .menu,
+  body.smooth-motion .dd-menu,
+  body.smooth-motion .drawer-inner,
+  body.smooth-motion .selbar,
+  body.smooth-motion .overlay,
+  body.smooth-motion .drawer-backdrop.show{
+    -webkit-backdrop-filter:none !important;
+    backdrop-filter:none !important;
+  }
+  body.smooth-motion #bgLayer.live::before{
+    animation:blobA 42s steps(420,end) infinite !important;
+  }
+  body.smooth-motion #bgLayer.live::after{
+    animation:blobB 54s steps(540,end) infinite !important;
+  }
+  body.smooth-motion .clock-digits .csep,
+  body.smooth-motion .cal-grid .day.holiday::after{
+    animation:none !important;
+  }
+  body.smooth-motion .card,
+  body.smooth-motion .widget,
+  body.smooth-motion .tab,
+  body.smooth-motion .mini,
+  body.smooth-motion .drawer-item,
+  body.smooth-motion .btn{
+    will-change:auto;
+  }
+  body.is-scrolling #bgLayer.live::before,
+  body.is-scrolling #bgLayer.live::after{
+    animation-play-state:paused !important;
+    will-change:auto;
+  }
+  body.is-scrolling header::before,
+  body.is-scrolling .actions,
+  body.is-scrolling .card,
+  body.is-scrolling .widget,
+  body.is-scrolling .drawer-inner,
+  body.is-scrolling .selbar{
+    -webkit-backdrop-filter:none !important;
+    backdrop-filter:none !important;
+  }
+  body.is-scrolling .card,
+  body.is-scrolling .widget{
+    box-shadow:var(--shadow-card) !important;
+    transition:none !important;
+  }
+  body.is-scrolling .card:hover,
+  body.is-scrolling .widget:hover{
+    transform:none !important;
   }
 
   /* Header — blur lives on a ::before pseudo, NOT on <header> itself, so that
@@ -448,6 +568,10 @@
 
   .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(212px,1fr)); gap:14px; animation:fadeIn .22s var(--ease); }
   .card{ position:relative; display:flex; align-items:flex-start; gap:13px; padding:14px; border-radius:var(--radius); cursor:pointer; background:var(--surface); border:1px solid var(--border); box-shadow:var(--shadow-card); min-width:0; transition:transform .18s var(--ease),box-shadow .18s var(--ease),border-color .18s,opacity .18s; animation:pop .32s var(--ease) both; }
+  @supports (content-visibility:auto){
+    .grid .card{ content-visibility:auto; contain-intrinsic-block-size:96px; }
+    .grid.list .card{ contain-intrinsic-block-size:54px; }
+  }
   .card:hover{ transform:translateY(-3px); box-shadow:var(--shadow-pop); border-color:var(--border-strong); }
   .card:active{ cursor:grabbing; }
   .card.dragging{ position:fixed !important; z-index:130; pointer-events:none; opacity:.96; transform:scale(1.015) rotate(.25deg); box-shadow:var(--shadow-pop); animation:none !important; will-change:transform,left,top; }

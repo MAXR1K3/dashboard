@@ -30,8 +30,7 @@ function applyBackground(){
   } else {
     el.className="";
   }
-  // 动态壁纸每帧都会让玻璃面板重新模糊，开销最大 → 用 body.bg-live 让 CSS 在动态壁纸下
-  // 去掉数量众多的卡片的 backdrop-filter，只保留少数组件的磨砂，封顶每帧开销
+  // 动态壁纸会放大玻璃重绘成本；body.bg-live 交给 CSS 做滚动/低功耗降级
   document.body.classList.toggle("bg-live", bg.type==="live");
 }
 

@@ -2,4 +2,4 @@
 "use strict";
 
 /* ===== init ===== */
-load(); purgeTrash(); applyI18n(); render(); initChromeSync();
+load(); purgeTrash(); applyI18n(); initPerformanceGuards(); render(); initChromeSync();

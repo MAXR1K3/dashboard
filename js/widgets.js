@@ -4,7 +4,7 @@
 /* ===== widgets ===== */
 function anyWidgetOn(){ for(var i=0;i<WKEYS.length;i++){ if(state.settings.widgets[WKEYS[i]]) return true; } return false; }
 function renderWidgets(){
-  if(clockTimer){ clearInterval(clockTimer); clockTimer=null; }
+  stopClockTimer();
   var head=$("#widgetsHead"), wrap=$("#widgetsWrap"), s=state.settings;
   if(s.widgetsHidden || !anyWidgetOn()){ wrap.style.display="none"; return; }
   wrap.style.display=""; head.classList.toggle("collapsed", !!s.widgetsCollapsed);
@@ -27,7 +27,7 @@ function renderWidgets(){
     idx++;
   });
   widgetsEl.innerHTML=html;
-  if(s.widgets.clock){ tickClock(); clockTimer=setInterval(tickClock,1000); }
+  if(s.widgets.clock){ startClockTimer(); }
   if(s.widgets.weather){ ensureWeather(); }
 }
 
@@ -54,6 +54,24 @@ function tickClock(){
   var g=$("#wGreet");
   if(g) g.textContent=h<5?t("goodNight"):h<12?t("goodMorning"):h<18?t("goodAfternoon"):t("goodEvening");
 }
+function stopClockTimer(){
+  if(clockTimer){ clearTimeout(clockTimer); clearInterval(clockTimer); clockTimer=null; }
+}
+function startClockTimer(){
+  stopClockTimer();
+  if(document.hidden || !$("#wTime")) return;
+  tickClock();
+  scheduleClockTick();
+}
+function scheduleClockTick(){
+  var cadence=state.settings.clockSeconds?1000:60000;
+  var delay=cadence-(Date.now()%cadence)+25;
+  clockTimer=setTimeout(function(){ tickClock(); scheduleClockTick(); }, delay);
+}
+document.addEventListener("visibilitychange", function(){
+  if(document.hidden) stopClockTimer();
+  else if($("#wTime")) startClockTimer();
+});
 function currentEngine(){ var k=state.settings.searchEngine||"google"; return ENGINES[k]?k:"google"; }
 function searchBody(){
   var cur=currentEngine(), chips="";
