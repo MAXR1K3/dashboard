@@ -174,23 +174,40 @@
         <div class="set-tab-wrap">
         <div class="set-tab on" data-tab="general">
         <div class="set-section" id="chromeSyncSection">
-          <h4 data-i18n="chromeSync">Chrome Sync</h4>
+          <h4 data-i18n="browserSync">Browser bookmark sync</h4>
           <div class="set-row">
             <div class="info">
-              <div class="t" data-i18n="chromeSync">Chrome Sync</div>
-              <div class="d" id="csSyncStatus"></div>
+              <div class="t" data-i18n="syncSource">Bookmark source</div>
+              <div class="d" data-i18n="browserSyncSec">Chrome and Edge sync through the extension. Safari uses exported bookmark files.</div>
             </div>
-            <div style="display:flex;gap:8px;align-items:center">
-              <button class="btn" id="csSyncNow" style="display:none" data-i18n="syncNow">Sync now</button>
-              <label class="switch"><input type="checkbox" id="setChromeSync"><span class="track"></span></label>
+            <div class="seg sm" id="syncSourceSeg">
+              <button data-sync-source="chrome" data-i18n="syncSourceChrome">Chrome</button>
+              <button data-sync-source="edge" data-i18n="syncSourceEdge">Edge</button>
+              <button data-sync-source="safari" data-i18n="syncSourceSafari">Safari</button>
             </div>
           </div>
           <div class="set-row">
             <div class="info">
-              <div class="t" data-i18n="chromeSyncReplace">Replace on sync</div>
-              <div class="d" data-i18n="chromeSyncReplaceDesc">Clear local bookmarks and categories, then rebuild them from Chrome.</div>
+              <div class="t" data-i18n="syncMode">Sync rule</div>
+              <div class="d" id="syncModeDesc"></div>
             </div>
-            <label class="switch"><input type="checkbox" id="setChromeSyncReplace"><span class="track"></span></label>
+            <div class="seg sm sync-mode-seg" id="syncModeSeg">
+              <button data-sync-mode="merge" data-i18n="syncModeMerge">Merge</button>
+              <button data-sync-mode="separate" data-i18n="syncModeSeparate">Separate</button>
+              <button data-sync-mode="replaceSource" data-i18n="syncModeReplaceSource">Replace source</button>
+              <button data-sync-mode="replaceAll" data-i18n="syncModeReplaceAll">Replace all</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="info">
+              <div class="t" data-i18n="browserSync">Browser bookmark sync</div>
+              <div class="d" id="csSyncStatus"></div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn" id="csSyncNow" style="display:none" data-i18n="syncNow">Sync now</button>
+              <button class="btn" id="safariImportBtn" style="display:none" data-i18n="syncSafariImport">Import Safari file</button>
+              <label class="switch"><input type="checkbox" id="setChromeSync"><span class="track"></span></label>
+            </div>
           </div>
           <div id="csNote" class="set-row" style="display:none">
             <div class="info"><div class="d"><a href="#" style="color:var(--accent);text-decoration:none;font-weight:600;" id="csSetupLink" data-i18n="extensionSetup">Extension setup guide</a></div></div>
@@ -287,6 +304,10 @@
           <h4 data-i18n="logSection">Activity log</h4>
           <div class="set-row"><div class="info"><div class="t" data-i18n="logFilterLabel">Show</div><div class="d" data-i18n="logSectionDesc">Every change is recorded and can be undone.</div></div>
             <div class="seg sm" id="logFilterSeg"><button data-logfilter="all" class="on" data-i18n="logAll">All</button><button data-logfilter="info" data-i18n="logLevel_info">Info</button><button data-logfilter="warn" data-i18n="logLevel_warn">Warn</button><button data-logfilter="danger" data-i18n="logLevel_danger">Danger</button></div>
+          </div>
+          <div class="set-row">
+            <div class="info"><div class="t" data-i18n="logRetention">Keep logs</div><div class="d" data-i18n="logRetentionDesc">Expired activity logs are deleted automatically to reduce local storage.</div></div>
+            <select id="logRet" class="sel"></select>
           </div>
           <div id="opLogList" class="op-log-list"></div>
           <button class="btn" id="logClearBtn" data-i18n="logClear" style="margin-top:10px;">Clear log</button>

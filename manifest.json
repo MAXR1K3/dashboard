@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Navi — Private Bookmark Dashboard",
-  "version": "1.4",
-  "description": "Private bookmark dashboard with read-only Chrome sync. Open from the toolbar icon.",
+  "version": "1.5",
+  "description": "Private bookmark dashboard with read-only browser bookmark sync. Open from the toolbar icon.",
   "permissions": [
     "bookmarks",
     "storage",

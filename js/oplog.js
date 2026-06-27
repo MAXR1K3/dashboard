@@ -6,6 +6,7 @@
 var OPLOG_MAX=200;          // 日志条数上限（元数据）
 var OPLOG_UNDO_DEPTH=15;    // 仅最近 N 条保留撤销快照，超出则丢弃快照（控制存储体积）
 var OPLOG_COALESCE=1600;    // ms：同类连续操作（如连续输入）合并为一条
+var LOG_RETENTION_OPTIONS=[0,1,2,3,5,7,14,30,-1];
 
 var _oplogReady=false, _oplogSuspended=false, _committedSnap=null, _olSeq=0;
 var _quickUndoId=null, _quickUndoTimer=null;
@@ -23,7 +24,7 @@ function oplogRestore(snap){
 }
 
 /* ===== diff helpers ===== */
-var OPLOG_VOLATILE={ engineUsage:1, weather:1, chromeSyncLastSync:1, chromeSyncCount:1, powerProfileVersion:1, lowPower:1, animations:1, widgetsCollapsed:1, widgetsHidden:1 };
+var OPLOG_VOLATILE={ engineUsage:1, weather:1, chromeSyncLastSync:1, chromeSyncCount:1, browserSyncLastSync:1, browserSyncCounts:1, powerProfileVersion:1, lowPower:1, animations:1, widgetsCollapsed:1, widgetsHidden:1 };
 function bmContentEq(a,b){
   return a.title===b.title && a.url===b.url && a.category===b.category && a.description===b.description &&
     ((a.tags||[]).join(""))===((b.tags||[]).join(""));
@@ -47,7 +48,8 @@ function settingChange(keys, s){
       categoryLayout:{key:"logSetCatLayout"}, clockSeconds:{key:"logSetClock"}, showHolidays:{key:"logSetHolidays"},
       glass:{key:"logSetGlass"}, glassOpacity:{key:"logSetGlass"}, refraction:{key:"logSetGlass"},
       widgets:{key:"logSetWidgets"}, widgetOrder:{key:"logSetWidgetOrder"}, widgetSize:{key:"logSetWidgetSize"},
-      trashRetention:{key:"logSetRetention"}, chromeSync:{key:"logSetSync"}, chromeSyncReplace:{key:"logSetSync"}, logo:{key:"logSetLogo"}
+      trashRetention:{key:"logSetRetention"}, logRetention:{key:"logSetRetention"},
+      chromeSync:{key:"logSetSync"}, chromeSyncReplace:{key:"logSetSync"}, browserSyncSource:{key:"logSetSync"}, browserSyncMode:{key:"logSetSync"}, logo:{key:"logSetLogo"}
     };
     var m=map[k]||{key:"logSetGeneric",vars:{k:k}};
     return { type:"setting:"+k, level:"info", key:m.key, vars:m.vars||{} };
@@ -136,7 +138,24 @@ function oplogDiff(b,a){
 function oplogEntry(c, snap){
   return { id:"L"+Date.now().toString(36)+(_olSeq++).toString(36), ts:Date.now(), level:c.level, type:c.type, ckey:(c.subject||c.type), key:c.key, vars:c.vars||{}, snap:snap };
 }
+function logRetentionLabel(v){
+  v=Number(v);
+  if(v===0) return t("logRetNow");
+  if(v===-1) return t("logRetNever");
+  return t("retDays",{n:v});
+}
+function purgeOpLog(){
+  if(!Array.isArray(state.opLog)) state.opLog=[];
+  var ret=Number(state.settings.logRetention);
+  if(isNaN(ret)) ret=2;
+  if(ret===0){ state.opLog=[]; return; }
+  if(ret>0){
+    var cutoff=Date.now()-ret*24*60*60*1000;
+    state.opLog=state.opLog.filter(function(e){ return e&&(!e.ts||e.ts>=cutoff); });
+  }
+}
 function oplogTrim(){
+  purgeOpLog();
   for(var i=OPLOG_UNDO_DEPTH;i<state.opLog.length;i++){ if(state.opLog[i].snap) state.opLog[i].snap=null; }
   if(state.opLog.length>OPLOG_MAX) state.opLog.length=OPLOG_MAX;
 }
@@ -202,6 +221,7 @@ function oplogUndo(id){
 var _opLogFilter="all";
 function renderOpLog(){
   var box=$("#opLogList"); if(!box) return;
+  purgeOpLog(); refreshLogBadge();
   var items=state.opLog.filter(function(e){ return _opLogFilter==="all" || e.level===_opLogFilter; });
   if(!items.length){ box.innerHTML='<div class="w-empty">'+escapeHtml(t("logEmpty"))+'</div>'; return; }
   box.innerHTML=items.map(function(e){
@@ -216,9 +236,15 @@ function renderOpLog(){
   }).join("");
 }
 function refreshLogBadge(){ var el=$("#logCount"); if(el) el.textContent=state.opLog.length?String(state.opLog.length):""; }
+function syncLogRetentionUI(){
+  var sel=$("#logRet"); if(!sel) return;
+  sel.innerHTML=LOG_RETENTION_OPTIONS.map(function(v){ return '<option value="'+v+'">'+escapeHtml(logRetentionLabel(v))+'</option>'; }).join("");
+  sel.value=String(state.settings.logRetention==null?2:state.settings.logRetention);
+}
 
 /* ===== settings-tab wiring ===== */
 (function oplogWire(){
+  syncLogRetentionUI();
   var seg=$("#logFilterSeg");
   if(seg) seg.addEventListener("click", function(e){ var b=e.target.closest("[data-logfilter]"); if(!b) return; _opLogFilter=b.getAttribute("data-logfilter"); $all("#logFilterSeg [data-logfilter]").forEach(function(x){ x.classList.toggle("on", x===b); }); renderOpLog(); });
   var list=$("#opLogList");
@@ -231,4 +257,11 @@ function refreshLogBadge(){ var el=$("#logCount"); if(el) el.textContent=state.o
   if(qBtn) qBtn.addEventListener("click", function(){ var id=_quickUndoId; hideQuickUndo(); if(id) oplogUndo(id); });
   var qClose=$("#quickUndoClose");
   if(qClose) qClose.addEventListener("click", hideQuickUndo);
+  var ret=$("#logRet");
+  if(ret) ret.addEventListener("change", function(){
+    state.settings.logRetention=Number(ret.value);
+    purgeOpLog();
+    _oplogSuspended=true; save(); _oplogSuspended=false;
+    renderOpLog(); refreshLogBadge();
+  });
 })();

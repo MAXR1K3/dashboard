@@ -2,4 +2,10 @@
 "use strict";
 
 /* ===== init ===== */
-load(); purgeTrash(); oplogInit(); applyI18n(); initPerformanceGuards(); render(); initAutoTheme(); initChromeSync();
+load(); purgeTrash();
+if(typeof purgeOpLog==="function"){
+  var _logN=Array.isArray(state.opLog)?state.opLog.length:0;
+  purgeOpLog();
+  if(_logN!==(Array.isArray(state.opLog)?state.opLog.length:0)) save();
+}
+oplogInit(); applyI18n(); initPerformanceGuards(); render(); initAutoTheme(); initChromeSync();

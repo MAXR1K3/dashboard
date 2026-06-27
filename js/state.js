@@ -5,6 +5,10 @@
 var KEY = "navi.dashboard.v3";
 var POWER_PROFILE_VERSION = 2;
 var WKEYS = ["clock","search","weather","calendar","frequent","recent","monitor"];
+function defaultBrowserSyncSource(){
+  if(typeof navigator!=="undefined" && /Edg\//.test(navigator.userAgent||"")) return "edge";
+  return "chrome";
+}
 function defaults(){
   return {
     bookmarks:[], categories:[], trash:[], opLog:[], theme:"light", view:"grid",
@@ -16,7 +20,8 @@ function defaults(){
       widgetSize:{ clock:1, search:2, weather:1, calendar:1, frequent:1, recent:1, monitor:2 },
       weather:null, weatherUnit:"c", searchEngine:"google", engineUsage:{},
       chromeSync:false, chromeSyncReplace:false, chromeSyncLastSync:0, chromeSyncCount:0,
-      trashRetention:7, aiProvider:"local", aiKey:"",
+      browserSyncSource:defaultBrowserSyncSource(), browserSyncMode:"merge", browserSyncLastSync:{}, browserSyncCounts:{},
+      trashRetention:7, logRetention:2, aiProvider:"local", aiKey:"",
       glass:false, glassOpacity:45, refraction:false, background:{ type:"gradient", live:"aurora", image:null },
       autoThemeCoords:null,
       powerProfileVersion:POWER_PROFILE_VERSION

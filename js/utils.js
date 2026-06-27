@@ -40,6 +40,13 @@ function load(){
     state.settings.widgets=Object.assign({}, d.settings.widgets, (s.settings&&s.settings.widgets)||{});
     state.settings.widgetSize=Object.assign({}, d.settings.widgetSize, (s.settings&&s.settings.widgetSize)||{});
     state.settings.background=Object.assign({}, d.settings.background, (s.settings&&s.settings.background)||{});
+    state.settings.browserSyncLastSync=Object.assign({}, d.settings.browserSyncLastSync, (s.settings&&s.settings.browserSyncLastSync)||{});
+    state.settings.browserSyncCounts=Object.assign({}, d.settings.browserSyncCounts, (s.settings&&s.settings.browserSyncCounts)||{});
+    if(!(s.settings&&s.settings.browserSyncSource)) state.settings.browserSyncSource=defaultBrowserSyncSource();
+    if(!(s.settings&&s.settings.browserSyncMode)) state.settings.browserSyncMode=state.settings.chromeSyncReplace?"replaceAll":"merge";
+    if(state.settings.chromeSyncLastSync&&!state.settings.browserSyncLastSync.chrome) state.settings.browserSyncLastSync.chrome=state.settings.chromeSyncLastSync;
+    if(state.settings.chromeSyncCount&&!state.settings.browserSyncCounts.chrome) state.settings.browserSyncCounts.chrome=state.settings.chromeSyncCount;
+    if(state.settings.logRetention==null) state.settings.logRetention=2;
     if(!(s.settings&&s.settings.motionMode)) state.settings.motionMode=(state.settings.lowPower===false&&state.settings.animations)?"smooth":"low";
     if(!Array.isArray(state.settings.widgetOrder)) state.settings.widgetOrder=d.settings.widgetOrder.slice();
     var migrated=migratePowerProfile();
