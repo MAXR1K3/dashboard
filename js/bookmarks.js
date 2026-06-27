@@ -399,7 +399,7 @@ $("#bmAuto").addEventListener("click", function(){
   });
 });
 
-var summaryUi={scope:"all",mode:"all",running:false};
+var summaryUi={scope:"all",mode:"all",running:false,results:null};
 function summaryCategories(){
   var seen={}, arr=[];
   (state.categories||[]).forEach(function(c){ c=cleanCatName(c); if(c&&!seen[c]){ seen[c]=1; arr.push(c); } });
@@ -437,13 +437,52 @@ function summaryTargetList(){
 function syncSummaryOverlay(){
   var info=$("#summaryScopeInfo"), run=$("#summaryRunBtn"); if(!info) return;
   var base=summaryBaseList(), target=summaryTargetList();
-  info.textContent=t("summaryScopeInfo",{n:target.length,total:base.length});
+  var html=escapeHtml(t("summaryScopeInfo",{n:target.length,total:base.length}));
+  // 数量较多时提示耗时
+  if(target.length>=8) html+='<div class="sum-timehint">'+escapeHtml(t("summaryTimeHint",{n:target.length}))+'</div>';
+  info.innerHTML=html;
   if(run) run.disabled=summaryUi.running||!target.length;
+}
+function exitSummaryReview(){
+  var rev=$("#summaryReview"); if(rev){ rev.style.display="none"; rev.innerHTML=""; }
+  $all("#summaryOverlay .modal-body .field").forEach(function(f){ f.style.display=""; });
+  var info=$("#summaryScopeInfo"); if(info) info.style.display="";
+  if($("#summaryRunBtn")) $("#summaryRunBtn").style.display="";
+  if($("#summaryApplyBtn")) $("#summaryApplyBtn").style.display="none";
+  if($("#summaryReviewToggle")) $("#summaryReviewToggle").style.display="none";
+}
+function enterSummaryReview(){
+  // 隐藏配置项，展示生成结果供逐条确认
+  $all("#summaryOverlay .modal-body .field").forEach(function(f){ f.style.display="none"; });
+  var info=$("#summaryScopeInfo"); if(info){ info.style.display=""; info.innerHTML=escapeHtml(t("summaryReviewHint",{n:summaryUi.results.length})); }
+  var rev=$("#summaryReview"); rev.style.display="";
+  rev.innerHTML=summaryUi.results.map(function(r,idx){
+    return '<label class="sum-rev'+(r.keep?" on":"")+'">'+
+      '<input type="checkbox"'+(r.keep?" checked":"")+' data-rev-cb="'+idx+'">'+
+      '<div class="min0">'+
+        '<div class="srv-t">'+escapeHtml(r.title)+'</div>'+
+        (r.oldDesc?'<div class="srv-old">'+escapeHtml(r.oldDesc)+'</div>':'')+
+        '<div class="srv-new">'+escapeHtml(r.newDesc)+'</div>'+
+      '</div></label>';
+  }).join("");
+  $("#summaryRunBtn").style.display="none";
+  $("#summaryApplyBtn").style.display="";
+  $("#summaryReviewToggle").style.display="";
+}
+function applySummaryReview(){
+  var n=0;
+  (summaryUi.results||[]).forEach(function(r){ if(r.keep){ var b=byId(r.id); if(b){ b.description=r.newDesc; n++; } } });
+  if(n){ save(); renderContent(); renderWidgets(); }
+  summaryUi.results=null;
+  exitSummaryReview();
+  closeOverlay("summaryOverlay");
+  toast(t("summariesDone",{n:n}), n?"ok":"");
 }
 function openSummaryOverlay(){
   if(summaryUi.running){ openOverlay("summaryOverlay"); return; }
   fillSummaryCatSelect();
-  summaryUi.running=false;
+  summaryUi.running=false; summaryUi.results=null;
+  exitSummaryReview();
   $("#summaryProgress").textContent="";
   setSummaryMode("all");
   setSummaryScope("all");
@@ -462,22 +501,23 @@ function runSummaryDescriptions(){
   if(!list.length){ toast(t("summaryNone"),""); syncSummaryOverlay(); return; }
   var btn=$("#summaryRunBtn"), progress=$("#summaryProgress"), old=btn.innerHTML;
   lockSummaryControls(true);
-  var i=0,n=0;
-  function finish(){
-    if(n){ save(); renderContent(); renderWidgets(); }
+  summaryUi.results=[];
+  var i=0;
+  // 生成完毕后不直接写入，先进入复核界面让用户取舍
+  function done(){
     lockSummaryControls(false);
     btn.innerHTML=old;
     progress.textContent="";
-    closeOverlay("summaryOverlay");
-    toast(t("summariesDone",{n:n}), n?"ok":"");
+    if(!summaryUi.results.length){ toast(t("summaryNone"),""); return; }
+    enterSummaryReview();
   }
   function next(){
-    if(i>=list.length){ finish(); return; }
+    if(i>=list.length){ done(); return; }
     var b=list[i++], label=b.title||getDomain(b.url)||b.url;
     progress.textContent=t("summaryProgress",{done:i,total:list.length,title:clipSummary(label,54)});
     describeBookmarkData(b.url,b.title,b.category,function(desc){
-      b.description=desc||smartSummary(b.url,b.title,b.category,"");
-      n++;
+      var nd=desc||smartSummary(b.url,b.title,b.category,"");
+      summaryUi.results.push({id:b.id, title:label, oldDesc:String(b.description||""), newDesc:nd, keep:true});
       next();
     });
   }
@@ -490,6 +530,18 @@ if($("#summaryScopeSeg")){
   $("#summaryModeSeg").addEventListener("click", function(e){ var btn=e.target.closest("[data-summary-mode]"); if(btn&&!summaryUi.running) setSummaryMode(btn.getAttribute("data-summary-mode")); });
   $("#summaryCat").addEventListener("change", syncSummaryOverlay);
   $("#summaryRunBtn").addEventListener("click", runSummaryDescriptions);
+  $("#summaryReview").addEventListener("change", function(e){
+    var cb=e.target.closest("[data-rev-cb]"); if(!cb||!summaryUi.results) return;
+    var idx=+cb.getAttribute("data-rev-cb"), r=summaryUi.results[idx];
+    if(r){ r.keep=cb.checked; var row=cb.closest(".sum-rev"); if(row) row.classList.toggle("on", cb.checked); }
+  });
+  $("#summaryReviewToggle").addEventListener("click", function(){
+    if(!summaryUi.results) return;
+    var allOn=summaryUi.results.every(function(r){ return r.keep; });
+    summaryUi.results.forEach(function(r){ r.keep=!allOn; });
+    $all("#summaryReview [data-rev-cb]").forEach(function(cb){ var idx=+cb.getAttribute("data-rev-cb"); cb.checked=summaryUi.results[idx].keep; var row=cb.closest(".sum-rev"); if(row) row.classList.toggle("on", cb.checked); });
+  });
+  $("#summaryApplyBtn").addEventListener("click", applySummaryReview);
 }
 
 // 删除 = 软删除：移入回收站并提供短时撤销，无需确认弹窗

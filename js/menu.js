@@ -11,10 +11,27 @@ $("#themeBtn").addEventListener("click", function(){
   if(state.theme==="auto"&&typeof scheduleAutoTheme==="function"){ scheduleAutoTheme(); requestAutoThemeGeo(); }
   else if(typeof _autoThemeTimer!=="undefined"&&_autoThemeTimer){ clearTimeout(_autoThemeTimer); _autoThemeTimer=null; }
 });
-$("#viewBtn").addEventListener("click", function(){ state.view=state.view==="grid"?"list":state.view==="list"?"list2":"grid"; save(); renderContent(); $("#viewBtn").innerHTML=viewBtnIcon(); });
+$("#viewBtn").addEventListener("click", function(){ state.view=state.view==="grid"?"list2":"grid"; save(); renderContent(); $("#viewBtn").innerHTML=viewBtnIcon(); });
 $("#langBtn").addEventListener("click", function(){ var i=LANGS.indexOf(state.settings.lang); setLang(LANGS[(i+1)%LANGS.length]); });
 $("#search").addEventListener("input", function(e){ ui.query=e.target.value; renderContent(); });
-$("#widgetsToggle").addEventListener("click", function(){ state.settings.widgetsCollapsed=!state.settings.widgetsCollapsed; save(); renderWidgets(); });
+$("#widgetsToggle").addEventListener("click", function(){
+  if(state.settings.widgetsCollapsed){ state.settings.widgetsCollapsed=false; save(); renderWidgets(); return; }
+  animateWidgetsCollapse();
+});
+function animateWidgetsCollapse(){
+  var el=widgetsEl, head=$("#widgetsHead");
+  if(!el || !el.children.length || document.body.classList.contains("low-power")){
+    state.settings.widgetsCollapsed=true; save(); renderWidgets(); return;
+  }
+  if(head) head.classList.add("collapsed"); // 立即旋转箭头
+  el.style.maxHeight=el.scrollHeight+"px"; el.classList.add("collapsing");
+  void el.offsetHeight; // 强制回流，确保从当前高度起算
+  el.style.maxHeight="0px"; el.style.opacity="0";
+  setTimeout(function(){
+    el.classList.remove("collapsing"); el.style.maxHeight=""; el.style.opacity="";
+    state.settings.widgetsCollapsed=true; save(); renderWidgets();
+  }, 340);
+}
 
 var moreMenu=$("#moreMenu");
 function closeMenu(){ moreMenu.classList.remove("open"); }

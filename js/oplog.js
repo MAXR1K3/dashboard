@@ -19,7 +19,7 @@ function oplogRestore(snap){
   state.bookmarks=JSON.parse(JSON.stringify(snap.bookmarks||[]));
   state.categories=JSON.parse(JSON.stringify(snap.categories||[]));
   state.trash=JSON.parse(JSON.stringify(snap.trash||[]));
-  state.theme=snap.theme||"light"; state.view=snap.view||"grid";
+  state.theme=snap.theme||"light"; state.view=(snap.view==="list"?"list2":snap.view)||"grid";
   state.settings=JSON.parse(JSON.stringify(snap.settings||{}));
 }
 

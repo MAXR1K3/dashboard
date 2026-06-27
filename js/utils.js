@@ -35,7 +35,7 @@ function load(){
     state.bookmarks=s.bookmarks; state.categories=Array.isArray(s.categories)?s.categories:[];
     state.trash=Array.isArray(s.trash)?s.trash:[];
     state.opLog=Array.isArray(s.opLog)?s.opLog:[];
-    state.theme=s.theme||"light"; state.view=s.view||"grid";
+    state.theme=s.theme||"light"; state.view=(s.view==="list"?"list2":s.view)||"grid";
     state.settings=Object.assign({}, d.settings, s.settings||{});
     state.settings.widgets=Object.assign({}, d.settings.widgets, (s.settings&&s.settings.widgets)||{});
     state.settings.widgetSize=Object.assign({}, d.settings.widgetSize, (s.settings&&s.settings.widgetSize)||{});
@@ -151,9 +151,23 @@ function markPowerBusy(){
   if(_scrollPowerTimer) clearTimeout(_scrollPowerTimer);
   _scrollPowerTimer=setTimeout(function(){ document.body.classList.remove("is-scrolling"); _scrollPowerTimer=0; },180);
 }
+// 下滑隐藏顶栏 / 上滑（或回到顶部）复原 —— 仅在设置开启时生效
+var _lastHdrSY=0, _hdrHidden=false;
+function onHeaderScroll(){
+  var y=window.pageYOffset||document.documentElement.scrollTop||0;
+  if(!(state.settings&&state.settings.hideHeaderOnScroll)||y<=64){
+    if(_hdrHidden){ document.body.classList.remove("header-hidden"); _hdrHidden=false; }
+    _lastHdrSY=y; return;
+  }
+  var dy=y-_lastHdrSY;
+  if(dy>6 && !_hdrHidden){ document.body.classList.add("header-hidden"); _hdrHidden=true; }
+  else if(dy<-6 && _hdrHidden){ document.body.classList.remove("header-hidden"); _hdrHidden=false; }
+  _lastHdrSY=y;
+}
 function initPerformanceGuards(){
   if(_powerGuardsReady) return; _powerGuardsReady=true;
   window.addEventListener("scroll", markPowerBusy, {passive:true,capture:true});
+  window.addEventListener("scroll", onHeaderScroll, {passive:true});
   window.addEventListener("wheel", markPowerBusy, {passive:true});
   window.addEventListener("touchmove", markPowerBusy, {passive:true});
   document.addEventListener("visibilitychange", function(){

@@ -7,7 +7,7 @@ var contentEl=$("#content"), widgetsEl=$("#widgets"), gridEl=null, _gridRendered
 function counts(){ var m={All:state.bookmarks.length}; state.categories.forEach(function(c){ m[c]=0; }); state.bookmarks.forEach(function(b){ m[b.category]=(m[b.category]||0)+1; }); return m; }
 function catLabel(c){ return c==="Uncategorized"? t("uncategorized") : c; }
 
-function viewBtnIcon(){ return state.view==="grid"?ICONS.list:state.view==="list"?ICONS.list2:ICONS.grid; }
+function viewBtnIcon(){ return state.view==="list2"?ICONS.grid:ICONS.list2; }
 function themeBtnIcon(){
   if(state.theme==="auto") return ICONS.autoTheme;
   return state.theme==="dark"?ICONS.sun:ICONS.moon;
@@ -31,7 +31,8 @@ function renderCategories(){
   var c=counts();
   if(mode==="drawer"){
     drawer.style.display="";
-    bar.innerHTML='<button class="drawer-toggle" id="drawerToggle">'+ICONS.layers+' '+escapeHtml(ui.activeCat==="All"?t("categoriesTitle"):catLabel(ui.activeCat))+'</button>';
+    var dtLabel=ui.activeCat==="All"?t("categoriesTitle"):catLabel(ui.activeCat);
+    bar.innerHTML='<button class="drawer-toggle" id="drawerToggle" title="'+escapeHtml(dtLabel)+'">'+ICONS.layers+'<span class="dt-label">'+escapeHtml(dtLabel)+'</span></button>';
     drawer.innerHTML=drawerInner(c);
   } else if(mode==="dropdown"){
     closeDrawerOverlay(); drawer.style.display="none";
@@ -73,9 +74,10 @@ function drawerInner(c){
   return h;
 }
 function drawerItem(cat,n,active,removable){
-  return '<div class="drawer-item'+(active?" active":"")+'" data-cat="'+escapeHtml(cat)+'">'+
+  var nm=cat==="All"?allLabel():catLabel(cat);
+  return '<div class="drawer-item'+(active?" active":"")+'" data-cat="'+escapeHtml(cat)+'" title="'+escapeHtml(nm)+'">'+
     (removable?'<span class="cat-grip" data-cat-grip title="'+escapeHtml(t("dragReorder"))+'">'+ICONS.grip+'</span>':'<span class="cat-grip ghost"></span>')+
-    '<div class="left">'+(cat==="All"?ICONS.layers:ICONS.folder)+'<span class="nm">'+escapeHtml(cat==="All"?allLabel():catLabel(cat))+'</span></div>'+
+    '<div class="left">'+(cat==="All"?ICONS.layers:ICONS.folder)+'<span class="nm">'+escapeHtml(nm)+'</span></div>'+
     '<span class="cnt">'+n+'</span>'+
     (removable?'<span class="cat-rename" data-rename-cat="'+escapeHtml(cat)+'" title="'+escapeHtml(t("renameCat",{cat:catLabel(cat)}))+'">'+ICONS.edit+'</span>':'<span></span>')+
     (removable?'<span class="x" data-del-cat="'+escapeHtml(cat)+'" title="'+escapeHtml(t("deleteCategory"))+'">'+ICONS.x+'</span>':'<span></span>')+
@@ -246,7 +248,7 @@ function renderContent(){
   if(total===0){ return renderEmpty("first"); }
   if(list.length===0){ return renderEmpty("none"); }
   var isFirst=!_gridRendered;
-  var cls="grid"+(state.view==="list"?" list":state.view==="list2"?" list list2":"")+(ui.query?" searching":"")+(isFirst?" fresh":"");
+  var cls="grid"+(state.view==="list2"?" list list2":"")+(ui.query?" searching":"")+(isFirst?" fresh":"");
   if(!isFirst) contentEl.style.opacity="0";
   var inner='<div class="'+cls+'" id="grid">';
   list.forEach(function(b,i){ inner+=cardHtml(b,i); });

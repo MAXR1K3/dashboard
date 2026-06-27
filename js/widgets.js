@@ -19,6 +19,7 @@ function renderWidgets(){
     if(key==="clock"){ icon=ICONS.clock; title=t("clock"); body=clockBody(); }
     else if(key==="search"){ icon=ICONS.gsearch; title=t("webSearch"); body=searchBody(); }
     else if(key==="weather"){ icon=ICONS.cloud; title=t("weather"); body='<div id="wxBody">'+weatherBody()+'</div>'; }
+    else if(key==="netinfo"){ icon=ICONS.globe; title=t("ipLocation"); body='<div id="netinfoBody">'+netinfoBody()+'</div>'; }
     else if(key==="calendar"){ icon=ICONS.cal; title=t("calendar"); body='<div id="calBody">'+calendarBody()+'</div>'; }
     else if(key==="frequent"){ icon=ICONS.star; title=t("frequentlyUsed"); body=listBody("frequent"); }
     else if(key==="monitor"){ icon=ICONS.server; title=t("monitorTitle"); body=monitorBody(); }
@@ -31,8 +32,28 @@ function renderWidgets(){
   widgetsEl.innerHTML=html;
   if(s.widgets.clock){ startClockTimer(); }
   if(s.widgets.weather){ ensureWeather(); }
+  if(s.widgets.netinfo){ ensureNetInfo(); }
   if(s.widgets.monitor && typeof ensureMonitor==="function"){ ensureMonitor(); }
+  layoutWidgets();           // 同步先算一次，避免依赖 rAF（隐藏标签页/慢帧时不至于错位）
+  scheduleWidgetLayout();    // 再排一帧，补上同步测量后可能发生的内容变化
 }
+
+/* ===== Masonry 布局：按内容高度给每个组件分配 grid-row span，消除拉伸留白、保持源顺序 ===== */
+var _wLayoutRAF=0;
+function scheduleWidgetLayout(){ if(_wLayoutRAF) return; _wLayoutRAF=requestAnimationFrame(function(){ _wLayoutRAF=0; layoutWidgets(); }); }
+function layoutWidgets(){
+  if(!widgetsEl) return;
+  var cs=getComputedStyle(widgetsEl);
+  if(cs.display!=="grid") return;
+  var rowH=parseFloat(cs.gridAutoRows)||6, gap=14;
+  var ws=$all(".widget", widgetsEl);
+  for(var i=0;i<ws.length;i++){
+    var w=ws[i]; if(w.classList.contains("draggingw")) continue;
+    var h=w.getBoundingClientRect().height; if(!h) continue;
+    w.style.gridRowEnd="span "+Math.max(1, Math.ceil((h+gap)/rowH));
+  }
+}
+window.addEventListener("resize", scheduleWidgetLayout, {passive:true});
 
 function clockBody(){
   return '<div class="clock-wrap">'+
@@ -64,6 +85,7 @@ function startClockTimer(){
   stopClockTimer();
   if(document.hidden || !$("#wTime")) return;
   tickClock();
+  layoutWidgets();
   scheduleClockTick();
 }
 function scheduleClockTick(){
@@ -117,8 +139,49 @@ function fetchWeather(lat,lon){
   var url="https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+"&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&temperature_unit="+tu+"&wind_speed_unit="+wu;
   fetch(url).then(function(r){ return r.json(); }).then(function(j){ var c=j.current||{}; weatherCache={key:key,ts:Date.now(),data:{temp:c.temperature_2m,code:c.weather_code,wind:c.wind_speed_10m,hum:c.relative_humidity_2m}}; refreshWeatherDom(); }).catch(function(){ weatherCache={error:"net",ts:Date.now()}; refreshWeatherDom(); });
 }
-function refreshWeatherDom(){ var b=$("#wxBody"); if(b) b.innerHTML=weatherBody(); }
-function refreshCalDom(){ var b=$("#calBody"); if(b) b.innerHTML=calendarBody(); }
+function refreshWeatherDom(){ var b=$("#wxBody"); if(b){ b.innerHTML=weatherBody(); layoutWidgets(); } }
+function refreshCalDom(){ var b=$("#calBody"); if(b){ b.innerHTML=calendarBody(); layoutWidgets(); } }
+
+/* ===== IP & location widget ===== */
+function niRow(k,v){ return '<div class="ni-row"><span class="ni-k">'+escapeHtml(k)+'</span><span class="ni-v" title="'+escapeHtml(v)+'">'+escapeHtml(v)+'</span></div>'; }
+function netinfoBody(){
+  if(netInfoCache&&netInfoCache.data){
+    var d=netInfoCache.data, loc=[d.city,d.region].filter(Boolean).join(", ");
+    var rows=niRow("IP", d.ip||"—");
+    if(d.isp) rows+=niRow(t("ipISP"), d.isp);
+    return '<div class="netinfo">'+
+      '<div class="ni-top">'+(d.flag?'<span class="ni-flag">'+escapeHtml(d.flag)+'</span>':ICONS.globe)+
+        '<div class="ni-loc"><div class="ni-city">'+escapeHtml(loc||d.country||t("ipUnknown"))+'</div>'+
+        '<div class="ni-country">'+escapeHtml(loc?d.country:"")+'</div></div></div>'+
+      '<div class="ni-rows">'+rows+'</div></div>';
+  }
+  if(netInfoCache&&netInfoCache.error){
+    return '<div class="wx-msg">'+escapeHtml(t("ipError"))+' <button class="link-btn" data-wact="ipretry">'+escapeHtml(t("retry"))+'</button></div>';
+  }
+  return '<div class="wx-skel"></div>';
+}
+function refreshNetInfoDom(){ var b=$("#netinfoBody"); if(b){ b.innerHTML=netinfoBody(); layoutWidgets(); } }
+function ensureNetInfo(){
+  if(netInfoCache&&netInfoCache.loading) return;
+  if(netInfoCache&&netInfoCache.data&&(Date.now()-netInfoCache.ts)<30*60*1000) return;
+  fetchNetInfo();
+}
+function fetchNetInfo(){
+  netInfoCache={loading:true};
+  fetch("https://ipwho.is/").then(function(r){ return r.json(); }).then(function(j){
+    if(j&&j.success!==false&&j.ip) return { ip:j.ip, city:j.city, region:j.region, country:j.country, flag:(j.flag&&j.flag.emoji)||"", isp:(j.connection&&(j.connection.isp||j.connection.org))||"" };
+    throw new Error("bad");
+  }).catch(function(){
+    return fetch("https://ipapi.co/json/").then(function(r){ return r.json(); }).then(function(j){
+      if(j&&j.ip) return { ip:j.ip, city:j.city, region:j.region, country:j.country_name||j.country, flag:"", isp:j.org||"" };
+      throw new Error("bad");
+    });
+  }).then(function(d){
+    netInfoCache={ts:Date.now(),data:d}; refreshNetInfoDom();
+  }).catch(function(){
+    netInfoCache={error:1,ts:Date.now()}; refreshNetInfoDom();
+  });
+}
 
 function easterDate(y){ var a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1; return new Date(y,mo-1,da); }
 function addDays(d,n){ var x=new Date(d); x.setDate(x.getDate()+n); return x; }
@@ -214,7 +277,7 @@ widgetsEl.addEventListener("click", function(e){
   var open=e.target.closest("[data-open]"); if(open){ openBookmark(open.getAttribute("data-open")); return; }
   var cal=e.target.closest("[data-cal]"); if(cal){ var a=cal.getAttribute("data-cal"); if(a==="prev"){ ui.calMonth--; if(ui.calMonth<0){ui.calMonth=11;ui.calYear--;} } else if(a==="next"){ ui.calMonth++; if(ui.calMonth>11){ui.calMonth=0;ui.calYear++;} } else { ui.calMonth=new Date().getMonth(); ui.calYear=new Date().getFullYear(); } refreshCalDom(); return; }
   var unit=e.target.closest("[data-unit]"); if(unit){ state.settings.weatherUnit=unit.getAttribute("data-unit"); save(); if(state.settings.weather) fetchWeather(state.settings.weather.lat,state.settings.weather.lon); return; }
-  var wact=e.target.closest("[data-wact]"); if(wact){ var act=wact.getAttribute("data-wact"); if(act==="geo"){ ui.geoTried=false; weatherCache=null; state.settings.weather=null; save(); refreshWeatherDom(); ensureWeather(); } else if(act==="retry"){ weatherCache=null; ui.geoTried=false; refreshWeatherDom(); ensureWeather(); } return; }
+  var wact=e.target.closest("[data-wact]"); if(wact){ var act=wact.getAttribute("data-wact"); if(act==="geo"){ ui.geoTried=false; weatherCache=null; state.settings.weather=null; save(); refreshWeatherDom(); ensureWeather(); } else if(act==="retry"){ weatherCache=null; ui.geoTried=false; refreshWeatherDom(); ensureWeather(); } else if(act==="ipretry"){ netInfoCache=null; refreshNetInfoDom(); ensureNetInfo(); } return; }
 });
 widgetsEl.addEventListener("submit", function(e){ if(e.target.id==="wxForm"){ e.preventDefault(); var city=$("#wxCity").value.trim(); if(city) geocodeCity(city); } if(e.target.id==="gForm"){ e.preventDefault(); runWebSearch(e.target.elements.q&&e.target.elements.q.value); } });
 function refreshSearchWidget(){ var w=widgetsEl.querySelector('.widget[data-w="search"]'); if(w){ var head=w.querySelector('.w-head'); w.innerHTML=(head?head.outerHTML:"")+searchBody(); } }
@@ -245,8 +308,8 @@ widgetsEl.addEventListener("dragstart", function(e){
 var wLastMove=null;
 widgetsEl.addEventListener("dragover", function(e){
   if(!dragW) return; e.preventDefault(); e.dataTransfer.dropEffect="move";
-  // 抖动抑制：每次移动后指针需再移动一段距离才重新判定，避免重排反馈循环
-  if(wLastMove&&Math.hypot(e.clientX-wLastMove.x,e.clientY-wLastMove.y)<10) return;
+  // 抖动抑制：每次移动后指针需再移动一小段距离才重新判定，避免重排反馈循环（阈值调小，响应更跟手）
+  if(wLastMove&&Math.hypot(e.clientX-wLastMove.x,e.clientY-wLastMove.y)<5) return;
   var pos=widgetAfter(e.clientX,e.clientY), moved=false;
   if(!pos.el){ if(widgetsEl.lastElementChild!==dragW){ widgetsEl.appendChild(dragW); moved=true; } }
   else if(pos.before){ if(pos.el!==dragW&&dragW.nextElementSibling!==pos.el){ widgetsEl.insertBefore(dragW,pos.el); moved=true; } }
@@ -255,22 +318,18 @@ widgetsEl.addEventListener("dragover", function(e){
 });
 widgetsEl.addEventListener("drop", function(e){ if(dragW) e.preventDefault(); });
 widgetsEl.addEventListener("dragend", function(){ if(dragW) dragW.classList.remove("draggingw"); widgetsEl.classList.remove("dragging-active"); document.body.classList.remove("no-select"); commitWidgetOrder(); dragW=null; wLastMove=null; });
-// 先按行定位，再在行内按 X 轴判定插入点 — 比“最近中心点”更符合直觉
+// 最近中心点判定：取指针到各组件中心距离最近者，再按指针处于其左/右半侧决定前/后插入。
+// 整块组件区域都参与命中（判定范围更大、更跟手），并适配瀑布流的错位高度。
 function widgetAfter(x,y){
   var els=$all(".widget:not(.draggingw)",widgetsEl);
   if(!els.length) return {el:null,before:true};
-  var items=els.map(function(el){ var b=el.getBoundingClientRect(); return {el:el,b:b,cx:b.left+b.width/2,cy:b.top+b.height/2}; });
-  items.sort(function(a,b){ return a.b.top-b.b.top||a.cx-b.cx; });
-  var rows=[], cur=null;
-  items.forEach(function(it){
-    if(!cur||it.b.top>=cur.bottom-it.b.height*0.5){ cur={top:it.b.top,bottom:it.b.bottom,items:[]}; rows.push(cur); }
-    cur.top=Math.min(cur.top,it.b.top); cur.bottom=Math.max(cur.bottom,it.b.bottom); cur.items.push(it);
-  });
-  var row=rows[rows.length-1];
-  for(var k=0;k<rows.length;k++){ if(y<=rows[k].bottom+5){ row=rows[k]; break; } }
-  row.items.sort(function(a,b){ return a.cx-b.cx; });
-  for(var m=0;m<row.items.length;m++){ if(x<row.items[m].cx) return {el:row.items[m].el,before:true}; }
-  return {el:row.items[row.items.length-1].el,before:false};
+  var best=null, bestD=Infinity, before=true;
+  for(var i=0;i<els.length;i++){
+    var b=els[i].getBoundingClientRect(), cx=b.left+b.width/2, cy=b.top+b.height/2;
+    var dx=x-cx, dy=y-cy, d=dx*dx+dy*dy;
+    if(d<bestD){ bestD=d; best=els[i]; before=(x<cx); }
+  }
+  return {el:best,before:before};
 }
 function commitWidgetOrder(){
   var order=$all(".widget",widgetsEl).map(function(el){ return el.getAttribute("data-w"); });

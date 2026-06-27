@@ -39,9 +39,6 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
           <span class="lbl" data-i18n="add">Add</span>
         </button>
-        <button class="btn icon" id="settingsBtn" data-i18n-title="settings" aria-label="settings">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        </button>
         <div class="menu-wrap">
           <button class="btn icon" id="moreBtn" data-i18n-title="more" aria-label="more"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg></button>
           <div class="menu" id="moreMenu">
@@ -155,8 +152,9 @@
         </div>
         <div class="summary-note" id="summaryScopeInfo"></div>
         <div class="summary-progress" id="summaryProgress"></div>
+        <div class="sum-review" id="summaryReview" style="display:none"></div>
       </div>
-      <div class="modal-foot"><button class="btn" data-close data-i18n="cancel">Cancel</button><button class="btn primary" id="summaryRunBtn" data-i18n="summaryRun">Generate</button></div>
+      <div class="modal-foot"><button class="btn" id="summaryReviewToggle" style="display:none" data-i18n="suggToggle">Toggle all</button><span style="flex:1"></span><button class="btn" data-close data-i18n="cancel">Cancel</button><button class="btn primary" id="summaryRunBtn" data-i18n="summaryRun">Generate</button><button class="btn primary" id="summaryApplyBtn" style="display:none" data-i18n="suggApply">Apply selected</button></div>
     </div>
   </div>
 
@@ -233,6 +231,7 @@
             <div class="seg sm motion-seg" id="motionSeg"><button data-motion="low" data-i18n="motionLow">Low power</button><button data-motion="smooth" data-i18n="motionSmooth">Smooth</button></div>
           </div>
           <div class="set-row"><div class="info"><div class="t" data-i18n="autoTheme">Auto theme</div><div class="d" data-i18n="autoThemeDesc">Switch dark/light by local sunrise &amp; sunset</div></div><label class="switch"><input type="checkbox" id="setAutoTheme"><span class="track"></span></label></div>
+          <div class="set-row"><div class="info"><div class="t" data-i18n="hideHeader">Hide top bar on scroll</div><div class="d" data-i18n="hideHeaderDesc">Tuck the top bar away when scrolling down; show it again on scroll up</div></div><label class="switch"><input type="checkbox" id="setHideHeader"><span class="track"></span></label></div>
           <div class="set-row"><div class="info"><div class="t" data-i18n="glassEffect">Liquid glass</div><div class="d" data-i18n="glassEffectDesc">Frosted, translucent panels</div></div><label class="switch"><input type="checkbox" id="setGlass"><span class="track"></span></label></div>
           <div class="set-row" id="glassOpacityRow"><div class="info"><div class="t" data-i18n="glassOpacity">Glass opacity</div><div class="d" data-i18n="glassOpacityDesc">Lower = more see-through</div></div>
             <div class="set-range"><input type="range" id="setGlassOpacity" min="8" max="85" step="1" /><span class="rv" id="glassOpacityVal">45%</span></div>
@@ -268,6 +267,7 @@
           <div class="set-row"><div class="info"><div class="t" data-i18n="showSeconds">Show seconds</div><div class="d" data-i18n="showSecondsDesc">Display seconds on the clock</div></div><label class="switch"><input type="checkbox" id="setSeconds"><span class="track"></span></label></div>
           <div class="set-row"><div class="info"><div class="t" data-i18n="googleSearch">Google search</div></div><label class="switch"><input type="checkbox" data-widget="search"><span class="track"></span></label></div>
           <div class="set-row"><div class="info"><div class="t" data-i18n="weather">Weather</div><div class="d" data-i18n="weatherDesc">Uses your location or a city you set</div></div><label class="switch"><input type="checkbox" data-widget="weather"><span class="track"></span></label></div>
+          <div class="set-row"><div class="info"><div class="t" data-i18n="ipWidget">IP &amp; location</div><div class="d" data-i18n="ipWidgetDesc">Show your public IP and approximate location</div></div><label class="switch"><input type="checkbox" data-widget="netinfo"><span class="track"></span></label></div>
           <div class="set-row"><div class="info"><div class="t" data-i18n="calendar">Calendar</div></div><label class="switch"><input type="checkbox" data-widget="calendar"><span class="track"></span></label></div>
           <div class="set-row"><div class="info"><div class="t" data-i18n="showHolidays">Show holidays</div><div class="d" data-i18n="showHolidaysDesc">Mark common public holidays in the calendar</div></div><label class="switch"><input type="checkbox" id="setHolidays"><span class="track"></span></label></div>
           <div class="set-row"><div class="info"><div class="t" data-i18n="frequentlyUsed">Frequently used</div><div class="d" data-i18n="frequentDesc">Your most-opened bookmarks</div></div><label class="switch"><input type="checkbox" data-widget="frequent"><span class="track"></span></label></div>

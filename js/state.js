@@ -4,7 +4,7 @@
 /* ===== state ===== */
 var KEY = "navi.dashboard.v3";
 var POWER_PROFILE_VERSION = 2;
-var WKEYS = ["clock","search","weather","calendar","frequent","recent","monitor"];
+var WKEYS = ["clock","search","weather","netinfo","calendar","frequent","recent","monitor"];
 function defaultBrowserSyncSource(){
   if(typeof navigator!=="undefined" && /Edg\//.test(navigator.userAgent||"")) return "edge";
   return "chrome";
@@ -14,10 +14,10 @@ function defaults(){
     bookmarks:[], categories:[], trash:[], opLog:[], theme:"light", view:"grid",
     settings:{
       appName:"Navi", tagline:"", logo:null, lang:"en", motionMode:"low", lowPower:true, animations:false,
-      widgetsCollapsed:false, widgetsHidden:false, clockSeconds:false, showHolidays:true, categoryLayout:"tabs",
-      widgets:{ clock:true, search:true, weather:true, calendar:true, frequent:true, recent:true, monitor:false },
-      widgetOrder:["clock","search","weather","calendar","frequent","recent","monitor"],
-      widgetSize:{ clock:1, search:2, weather:1, calendar:1, frequent:1, recent:1, monitor:2 },
+      widgetsCollapsed:false, widgetsHidden:false, clockSeconds:false, showHolidays:true, categoryLayout:"tabs", hideHeaderOnScroll:false,
+      widgets:{ clock:true, search:true, weather:true, netinfo:true, calendar:true, frequent:true, recent:true, monitor:false },
+      widgetOrder:["clock","search","weather","netinfo","calendar","frequent","recent","monitor"],
+      widgetSize:{ clock:1, search:2, weather:1, netinfo:1, calendar:1, frequent:1, recent:1, monitor:2 },
       weather:null, weatherUnit:"c", searchEngine:"google", engineUsage:{},
       chromeSync:false, chromeSyncReplace:false, chromeSyncLastSync:0, chromeSyncCount:0,
       browserSyncSource:defaultBrowserSyncSource(), browserSyncMode:"merge", browserSyncLastSync:{}, browserSyncCounts:{},
@@ -30,4 +30,4 @@ function defaults(){
 }
 var state = defaults();
 var ui = { activeCat:"All", query:"", selectMode:false, selected:{}, editingId:null, importData:null, importMode:"merge", calMonth:new Date().getMonth(), calYear:new Date().getFullYear(), geoTried:false, ddOpen:false };
-var clockTimer=null, weatherCache=null;
+var clockTimer=null, weatherCache=null, netInfoCache=null;

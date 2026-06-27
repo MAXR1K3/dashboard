@@ -331,7 +331,7 @@ function monitorServicesHtml(){
 function monitorInner(){
   return monitorMetricsHtml()+monitorServicesHtml();
 }
-function refreshMonitorDom(){ var b=$("#monBody"); if(b) b.innerHTML=monitorInner(); }
+function refreshMonitorDom(){ var b=$("#monBody"); if(b){ b.innerHTML=monitorInner(); if(typeof layoutWidgets==="function") layoutWidgets(); } }
 
 /* ===== widget interactions ===== */
 widgetsEl.addEventListener("click", function(e){
