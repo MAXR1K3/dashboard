@@ -16,6 +16,7 @@ function openSettings(){
   $("#setAiKey").value=s.aiKey||"";
   $all('#aiProvSeg [data-aiprov]').forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-aiprov")===(s.aiProvider||"local")); });
   $("#setGlass").checked=s.glass!==false;
+  if(typeof syncMonitorUI==="function") syncMonitorUI();
   syncBgUI(); updateSyncUI(); openOverlay("settingsOverlay");
 }
 

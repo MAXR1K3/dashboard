@@ -661,8 +661,11 @@
   .msg{ font-size:14px; color:var(--text-soft); line-height:1.55; }
 
   .set-section{ margin-bottom:18px; } .set-section h4{ font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-faint); margin:0 0 4px; font-weight:800; }
-  .set-row{ display:flex; align-items:center; justify-content:space-between; gap:14px; padding:12px 0; border-bottom:1px solid var(--border); } .set-row:last-child{ border-bottom:0; }
-  .set-row .info{ min-width:0; } .set-row .info .t{ font-size:13.5px; font-weight:600; } .set-row .info .d{ font-size:12px; color:var(--text-faint); margin-top:2px; }
+  .set-row{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; padding:12px 0; border-bottom:1px solid var(--border); } .set-row:last-child{ border-bottom:0; }
+  .set-row .info{ min-width:0; flex:1 1 200px; } .set-row .info .t{ font-size:13.5px; font-weight:600; } .set-row .info .d{ font-size:12px; color:var(--text-faint); margin-top:2px; }
+  /* Segment controls keep their natural width and never shrink (so long labels like 本地规则 can't clip);
+     when they don't fit beside the label, the row wraps and the control drops to its own line. */
+  .set-row .seg.sm{ flex:0 0 auto; max-width:100%; }
   .switch{ position:relative; width:44px; height:25px; flex:0 0 auto; cursor:pointer; } .switch input{ opacity:0; width:0; height:0; position:absolute; }
   .switch .track{ position:absolute; inset:0; background:var(--surface-3); border:1px solid var(--border); border-radius:999px; transition:.22s; }
   .switch .track:before{ content:""; position:absolute; width:19px; height:19px; left:2px; top:2px; background:#fff; border-radius:50%; transition:.22s var(--ease); box-shadow:0 1px 3px rgba(0,0,0,.3); }
@@ -670,8 +673,10 @@
   .logo-row{ display:flex; align-items:center; gap:14px; }
   .logo-preview{ width:52px; height:52px; border-radius:14px; overflow:hidden; flex:0 0 auto; display:grid; place-items:center; background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff; box-shadow:0 6px 16px rgba(109,94,252,.4); } .logo-preview svg{ width:26px; height:26px; } .logo-preview img{ width:100%; height:100%; object-fit:cover; }
   .seg{ display:flex; gap:6px; background:var(--surface-3); padding:4px; border-radius:12px; }
-  .seg button{ flex:1; height:34px; border:0; border-radius:9px; background:transparent; color:var(--text-soft); font-weight:600; font-size:13px; cursor:pointer; } .seg button.on{ background:var(--surface); color:var(--text); box-shadow:var(--shadow-card); }
-  .seg.sm{ display:inline-flex; }
+  .seg button{ flex:1; min-width:0; height:34px; padding:0 10px; border:0; border-radius:9px; background:transparent; color:var(--text-soft); font-weight:600; font-size:13px; line-height:34px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; } .seg button.on{ background:var(--surface); color:var(--text); box-shadow:var(--shadow-card); }
+  .seg.sm{ display:inline-flex; max-width:100%; }
+  /* Compact segments size each button to its own label so wider labels (本地规则) never get clipped. */
+  .seg.sm button{ flex:0 0 auto; }
 
   .imp-summary{ display:flex; gap:10px; margin:4px 0 14px; flex-wrap:wrap; } .stat{ flex:1; min-width:120px; background:var(--surface-2); border:1px solid var(--border); border-radius:14px; padding:12px 14px; }
   .stat .num{ font-size:24px; font-weight:800; letter-spacing:-.5px; } .stat .lab{ font-size:11.5px; color:var(--text-faint); font-weight:600; margin-top:2px; }
@@ -704,6 +709,8 @@
     .modal-head,.modal-body,.modal-foot{ padding-left:16px; padding-right:16px; }
     .modal-foot{ flex-wrap:wrap; }
     .modal-foot .btn{ flex:1 1 auto; justify-content:center; }
+    .set-row .seg.sm, .set-row .set-range{ flex:1 1 100%; width:100%; min-width:0; }
+    .set-row .seg.sm button{ flex:1 1 0; }
     .selbar{ left:12px; right:12px; transform:translateY(calc(100% + 42px)); width:auto; justify-content:center; flex-wrap:wrap; }
     .selbar.show{ transform:translateY(0); }
     .selbar .sep{ display:none; }
@@ -769,3 +776,47 @@ body.no-select, body.no-select *{ user-select:none !important; -webkit-user-sele
 /* 图标防裁切：所有按钮/菜单内 svg 不参与 flex 压缩，保持自身尺寸 */
 button svg, .menu button svg, .btn svg, .toast svg{ flex:0 0 auto; min-width:0; }
 .toast svg{ width:17px; height:17px; }
+
+/* ===== 内网监控 widget ===== */
+@media(min-width:900px){ .widget[data-w="monitor"]{ grid-column:span 2; } }
+#monBody{ display:flex; flex-direction:column; gap:12px; flex:1; min-width:0; }
+.mon-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(118px,1fr)); gap:10px; }
+.mon-stat{ background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:10px 12px; min-width:0; }
+.mon-stat-h{ display:flex; align-items:center; gap:6px; color:var(--text-faint); font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
+.mon-stat-h svg{ width:14px; height:14px; flex:0 0 auto; }
+.mon-stat-l{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mon-stat-v{ font-size:20px; font-weight:800; letter-spacing:-.4px; margin-top:3px; line-height:1.1; }
+.mon-stat-s{ font-size:11.5px; color:var(--text-faint); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mon-net{ display:flex; flex-wrap:wrap; gap:4px 12px; font-size:15px; font-weight:700; }
+.mon-net .dn{ color:#2bb673; } .mon-net .up{ color:var(--accent); }
+.mon-bar{ height:6px; background:var(--surface-3); border-radius:999px; overflow:hidden; margin-top:8px; }
+.mon-bar-fill{ display:block; height:100%; border-radius:999px; background:#2bb673; transition:width .4s var(--ease); }
+.mon-bar-fill.warn{ background:#e8a33d; } .mon-bar-fill.crit{ background:var(--danger); }
+.mon-disks{ display:flex; flex-direction:column; gap:8px; }
+.mon-disk-h{ display:flex; justify-content:space-between; font-size:12.5px; color:var(--text-soft); gap:8px; }
+.mon-disk-h .mnt{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .mon-disk-h .pc{ font-weight:700; flex:0 0 auto; }
+.mon-extras{ display:flex; flex-direction:column; gap:1px; border-top:1px solid var(--border); padding-top:8px; }
+.mon-x{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12.5px; padding:3px 0; }
+.mon-x-l{ display:flex; align-items:center; gap:7px; color:var(--text-soft); } .mon-x-l svg{ width:15px; height:15px; flex:0 0 auto; color:var(--text-faint); }
+.mon-x-v{ font-weight:700; color:var(--text); text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mon-svcs{ display:flex; flex-wrap:wrap; gap:8px; margin-top:auto; }
+.mon-svc{ display:inline-flex; align-items:center; gap:7px; background:var(--surface-2); border:1px solid var(--border); border-radius:999px; padding:5px 11px; font-size:12.5px; max-width:100%; }
+.mon-dot{ width:8px; height:8px; border-radius:50%; background:var(--text-faint); flex:0 0 auto; box-shadow:0 0 0 3px transparent; }
+.mon-svc.up .mon-dot{ background:#2bb673; box-shadow:0 0 0 3px rgba(43,182,115,.16); }
+.mon-svc.down .mon-dot{ background:var(--danger); box-shadow:0 0 0 3px var(--danger-soft); }
+.mon-svc.pending .mon-dot{ background:#e8a33d; }
+.mon-svc-n{ font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mon-svc-s{ color:var(--text-faint); flex:0 0 auto; }
+.mon-svc.down .mon-svc-s{ color:var(--danger); }
+.mon-hint{ font-size:13px; color:var(--text-soft); background:var(--surface-2); border:1px dashed var(--border-strong,var(--border)); border-radius:12px; padding:12px 14px; }
+.mon-hint.mon-err{ border-style:solid; }
+.mon-err-d{ font-size:12px; color:var(--text-faint); margin-top:6px; }
+.mon-skel{ height:96px; border-radius:12px; background:linear-gradient(90deg,var(--surface-2) 25%,var(--surface-3) 37%,var(--surface-2) 63%); background-size:600px 100%; animation:shimmer 1.3s infinite linear; }
+.link-btn{ background:none; border:0; color:var(--accent); font-weight:700; cursor:pointer; padding:0; font-size:inherit; }
+/* settings: services editor */
+.mon-svc-editor{ display:flex; flex-direction:column; gap:8px; }
+.mon-svc-row{ display:flex; gap:8px; align-items:center; }
+.mon-svc-row input{ height:38px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); color:var(--text); padding:0 12px; font-size:13px; min-width:0; }
+.mon-svc-row .mon-svc-name{ flex:0 0 34%; } .mon-svc-row .mon-svc-url{ flex:1 1 auto; }
+.mon-svc-row input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); background:var(--surface); }
+.btn.icon.mon-svc-del{ flex:0 0 auto; width:38px; height:38px; padding:0; }

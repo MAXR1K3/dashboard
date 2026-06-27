@@ -5,6 +5,7 @@
 function anyWidgetOn(){ for(var i=0;i<WKEYS.length;i++){ if(state.settings.widgets[WKEYS[i]]) return true; } return false; }
 function renderWidgets(){
   stopClockTimer();
+  if(typeof stopMonTimer==="function") stopMonTimer();
   var head=$("#widgetsHead"), wrap=$("#widgetsWrap"), s=state.settings;
   if(s.widgetsHidden || !anyWidgetOn()){ wrap.style.display="none"; return; }
   wrap.style.display=""; head.classList.toggle("collapsed", !!s.widgetsCollapsed);
@@ -20,6 +21,7 @@ function renderWidgets(){
     else if(key==="weather"){ icon=ICONS.cloud; title=t("weather"); body='<div id="wxBody">'+weatherBody()+'</div>'; }
     else if(key==="calendar"){ icon=ICONS.cal; title=t("calendar"); body='<div id="calBody">'+calendarBody()+'</div>'; }
     else if(key==="frequent"){ icon=ICONS.star; title=t("frequentlyUsed"); body=listBody("frequent"); }
+    else if(key==="monitor"){ icon=ICONS.server; title=t("monitorTitle"); body=monitorBody(); }
     else { icon=ICONS.history; title=t("recentlyOpened"); body=listBody("recent"); }
     var anim=s.animations?(' style="animation-delay:'+(idx*0.06).toFixed(2)+'s"'):'';
     html+='<div class="widget" data-w="'+key+'"'+anim+'>'+
@@ -29,6 +31,7 @@ function renderWidgets(){
   widgetsEl.innerHTML=html;
   if(s.widgets.clock){ startClockTimer(); }
   if(s.widgets.weather){ ensureWeather(); }
+  if(s.widgets.monitor && typeof ensureMonitor==="function"){ ensureMonitor(); }
 }
 
 function clockBody(){
