@@ -3,8 +3,26 @@
 
 /* ===== bookmark add/edit ===== */
 function fillCatSelect(sel){ var s=$("#bmCat"); s.innerHTML=state.categories.map(function(c){ return '<option value="'+escapeHtml(c)+'"'+(c===sel?" selected":"")+'>'+escapeHtml(catLabel(c))+'</option>'; }).join(""); if(state.categories.indexOf("Uncategorized")===-1){ s.innerHTML+='<option value="Uncategorized"'+(sel==="Uncategorized"?" selected":"")+'>'+escapeHtml(t("uncategorized"))+'</option>'; } }
-function openAdd(){ ui.editingId=null; $("#bmTitle").textContent=t("addBookmark"); $("#bmSave").textContent=t("saveBookmark"); $("#bmUrl").value=""; $("#bmName").value=""; $("#bmDesc").value=""; fillCatSelect((ui.activeCat!=="All")?ui.activeCat:(state.categories[0]||"Uncategorized")); openOverlay("bmOverlay"); setTimeout(function(){ $("#bmUrl").focus(); },50); }
-function openEdit(id){ var b=byId(id); if(!b) return; ui.editingId=id; $("#bmTitle").textContent=t("editBookmark"); $("#bmSave").textContent=t("saveChanges"); $("#bmUrl").value=b.url; $("#bmName").value=b.title; $("#bmDesc").value=b.description||""; fillCatSelect(b.category); openOverlay("bmOverlay"); setTimeout(function(){ $("#bmName").focus(); },50); }
+function syncBookmarkOptionFields(b){
+  var opt=$("#bmOptionsField"), healthRow=$("#bmHealthRow"), sel=$("#bmHealth"), pin=$("#bmPinned");
+  if(!opt) return;
+  var editing=!!b;
+  opt.style.display=editing?"":"none";
+  if(pin) pin.checked=!!(b&&b.pinned);
+  if(healthRow) healthRow.style.display=editing?"":"none";
+  if(sel){
+    sel.innerHTML=[
+      '<option value="auto">'+escapeHtml(t("linkStatusAuto"))+'</option>',
+      '<option value="ok">'+escapeHtml(t("healthSetOk"))+'</option>',
+      '<option value="warn">'+escapeHtml(t("healthSetWarn"))+'</option>',
+      '<option value="bad">'+escapeHtml(t("healthSetBad"))+'</option>'
+    ].join("");
+    var st=(b&&b.health&&b.health.manual&&b.health.status)||"auto";
+    sel.value=(st==="ok"||st==="warn"||st==="bad")?st:"auto";
+  }
+}
+function openAdd(){ ui.editingId=null; $("#bmTitle").textContent=t("addBookmark"); $("#bmSave").textContent=t("saveBookmark"); $("#bmUrl").value=""; $("#bmName").value=""; $("#bmDesc").value=""; syncBookmarkOptionFields(null); fillCatSelect((ui.activeCat!=="All")?ui.activeCat:(state.categories[0]||"Uncategorized")); openOverlay("bmOverlay"); setTimeout(function(){ $("#bmUrl").focus(); },50); }
+function openEdit(id){ var b=byId(id); if(!b) return; ui.editingId=id; $("#bmTitle").textContent=t("editBookmark"); $("#bmSave").textContent=t("saveChanges"); $("#bmUrl").value=b.url; $("#bmName").value=b.title; $("#bmDesc").value=b.description||""; syncBookmarkOptionFields(b); fillCatSelect(b.category); openOverlay("bmOverlay"); setTimeout(function(){ $("#bmName").focus(); },50); }
 function saveBookmark(){
   var url=normalizeUrl($("#bmUrl").value); if(!url){ toast(t("pleaseUrl"),"err"); $("#bmUrl").focus(); return; }
   if(!isWebUrl(url)){ toast(t("invalidUrl"),"err"); $("#bmUrl").focus(); return; }
@@ -12,7 +30,7 @@ function saveBookmark(){
   if(!desc) desc=smartSummary(url,name,cat,"");
   if(isReservedCat(cat)) cat="Uncategorized";
   if(state.categories.indexOf(cat)===-1) state.categories.push(cat);
-  if(ui.editingId){ var b=byId(ui.editingId); if(b){ b.url=url; b.title=name; b.category=cat; b.description=desc; delete b._seed; } toast(t("bookmarkUpdated"),"ok"); }
+  if(ui.editingId){ var b=byId(ui.editingId); if(b){ b.url=url; b.title=name; b.category=cat; b.description=desc; b.pinned=!!($("#bmPinned")&&$("#bmPinned").checked); var h=$("#bmHealth")?$("#bmHealth").value:"auto"; if(h==="ok"||h==="warn"||h==="bad") b.health={status:h,ts:Date.now(),manual:true}; else if(b.health&&b.health.manual) delete b.health; delete b._seed; } toast(t("bookmarkUpdated"),"ok"); }
   else { state.bookmarks.unshift({ id:uid(), title:name, url:url, category:cat, description:desc, clicks:0, lastOpened:0 }); toast(t("bookmarkAdded"),"ok"); }
   save(); closeOverlay("bmOverlay"); render();
 }

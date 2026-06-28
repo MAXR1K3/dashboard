@@ -7,7 +7,9 @@ var contentEl=$("#content"), widgetsEl=$("#widgets"), gridEl=null, _gridRendered
 function counts(){ var m={All:state.bookmarks.length}; state.categories.forEach(function(c){ m[c]=0; }); state.bookmarks.forEach(function(b){ m[b.category]=(m[b.category]||0)+1; }); return m; }
 function catLabel(c){ return c==="Uncategorized"? t("uncategorized") : c; }
 
-function viewBtnIcon(){ return state.view==="list2"?ICONS.grid:ICONS.list2; }
+function viewBtnIcon(){ return state.view==="list"?ICONS.grid:ICONS.list2; }
+function pinnedCats(){ if(!state.settings.pinnedCategories) state.settings.pinnedCategories={}; return state.settings.pinnedCategories; }
+function isCatPinned(cat){ return !!pinnedCats()[cat]; }
 function themeBtnIcon(){
   if(state.theme==="auto") return ICONS.autoTheme;
   return state.theme==="dark"?ICONS.sun:ICONS.moon;
@@ -248,7 +250,7 @@ function renderContent(){
   if(total===0){ return renderEmpty("first"); }
   if(list.length===0){ return renderEmpty("none"); }
   var isFirst=!_gridRendered;
-  var cls="grid"+(state.view==="list2"?" list list2":"")+(ui.query?" searching":"")+(isFirst?" fresh":"");
+  var cls="grid"+(state.view==="list"?" list2":"")+(ui.query?" searching":"")+(isFirst?" fresh":"");
   if(!isFirst) contentEl.style.opacity="0";
   var inner='<div class="'+cls+'" id="grid">';
   list.forEach(function(b,i){ inner+=cardHtml(b,i); });
@@ -261,7 +263,8 @@ function cardHtml(b,i){
   var dom=getDomain(b.url), hue=hashHue(dom||b.title), letter=(b.title||dom||"?").trim().charAt(0)||"?", fav=faviconUrl(b.url);
   var canDrag=(!ui.selectMode && !ui.query);
   var delay=state.settings.animations?(' style="animation-delay:'+(Math.min(i,28)*0.022).toFixed(3)+'s"'):'';
-  return '<div class="card'+(ui.selected[b.id]?" selected":"")+'" data-id="'+escapeHtml(b.id)+'"'+delay+'>'+
+  var desc=b.description||"", pinned=!!b.pinned;
+  return '<div class="card'+(ui.selected[b.id]?" selected":"")+(pinned?" pinned":"")+'" data-id="'+escapeHtml(b.id)+'" data-desc="'+escapeHtml(desc)+'"'+delay+'>'+
     '<div class="check">'+ICONS.check+'</div>'+
     '<div class="fav" style="--c:'+hue+'"><span class="letter">'+escapeHtml(letter)+'</span>'+(fav?'<img class="fav-img" loading="lazy" alt="" src="'+escapeHtml(fav)+'"/>':'')+'</div>'+
     '<div class="meta">'+
@@ -273,7 +276,10 @@ function cardHtml(b,i){
       (ui.activeCat==="All"?'<span class="cat-chip">'+escapeHtml(catLabel(b.category))+'</span>':'')+
       (b.tags&&b.tags.length?b.tags.slice(0,3).map(function(tg){ return '<span class="tag-chip">#'+escapeHtml(String(tg))+'</span>'; }).join(""):'')+
     '</div>'+      (canDrag?'<span class="card-grip" title="'+escapeHtml(t("dragReorder"))+'">'+ICONS.grip+'</span>':'')+
-    '<div class="card-actions"><button data-edit="'+escapeHtml(b.id)+'" title="'+escapeHtml(t("editBookmark"))+'">'+ICONS.edit+'</button><button class="del" data-del="'+escapeHtml(b.id)+'" title="'+escapeHtml(t("delete"))+'">'+ICONS.trash+'</button></div>'+
+    '<div class="card-actions">'+
+      '<button data-edit="'+escapeHtml(b.id)+'" title="'+escapeHtml(t("editBookmark"))+'">'+ICONS.edit+'</button>'+
+      '<button class="del" data-del="'+escapeHtml(b.id)+'" title="'+escapeHtml(t("delete"))+'">'+ICONS.trash+'</button>'+
+    '</div>'+
   '</div>';
 }
 function renderEmpty(kind){

@@ -34,17 +34,56 @@ function renderWidgets(){
   if(s.widgets.weather){ ensureWeather(); }
   if(s.widgets.netinfo){ ensureNetInfo(); }
   if(s.widgets.monitor && typeof ensureMonitor==="function"){ ensureMonitor(); }
-  layoutWidgets();           // 同步先算一次，避免依赖 rAF（隐藏标签页/慢帧时不至于错位）
-  scheduleWidgetLayout();    // 再排一帧，补上同步测量后可能发生的内容变化
+  layoutWidgets(false);      // 初次渲染先稳定落位，避免从空布局飞入
+  scheduleWidgetLayout(false); // 再排一帧，补上同步测量后可能发生的内容变化
 }
 
 /* ===== Masonry 布局：按内容高度给每个组件分配 grid-row span，消除拉伸留白、保持源顺序 ===== */
-var _wLayoutRAF=0;
-function scheduleWidgetLayout(){ if(_wLayoutRAF) return; _wLayoutRAF=requestAnimationFrame(function(){ _wLayoutRAF=0; layoutWidgets(); }); }
-function layoutWidgets(){
+var _wLayoutRAF=0, _wMoveTimer=0;
+function scheduleWidgetLayout(animate){ if(_wLayoutRAF) return; _wLayoutRAF=requestAnimationFrame(function(){ _wLayoutRAF=0; layoutWidgets(animate!==false); }); }
+function widgetRectMap(){
+  var m={};
+  $all(".widget", widgetsEl).forEach(function(w){
+    if(w.classList.contains("draggingw")) return;
+    var k=w.getAttribute("data-w"), r=w.getBoundingClientRect();
+    if(k&&r.width&&r.height) m[k]={left:r.left,top:r.top};
+  });
+  return m;
+}
+function animateWidgetMoves(before){
+  if(!before||dragW||document.hidden) return;
+  var changed=false, movers=[];
+  $all(".widget", widgetsEl).forEach(function(w){
+    if(w.classList.contains("draggingw")) return;
+    var k=w.getAttribute("data-w"), b=before[k]; if(!b) return;
+    var r=w.getBoundingClientRect(), dx=b.left-r.left, dy=b.top-r.top;
+    if(Math.abs(dx)<1&&Math.abs(dy)<1) return;
+    changed=true; movers.push(w);
+    w.classList.add("movingw");
+    w.style.transition="none";
+    w.style.transform="translate3d("+dx+"px,"+dy+"px,0)";
+  });
+  if(!changed) return;
+  if(_wMoveTimer){ clearTimeout(_wMoveTimer); _wMoveTimer=0; }
+  widgetsEl.classList.add("layout-moving");
+  // Force style commit before animating back to the natural grid position.
+  void widgetsEl.offsetHeight;
+  movers.forEach(function(w){
+    w.style.transition="transform .32s cubic-bezier(.2,.8,.2,1), box-shadow .24s var(--ease), border-color .2s, background .2s";
+    w.style.transform="";
+  });
+  _wMoveTimer=setTimeout(function(){
+    _wMoveTimer=0;
+    widgetsEl.classList.remove("layout-moving");
+    $all(".widget.movingw", widgetsEl).forEach(function(w){ w.classList.remove("movingw"); w.style.transition=""; w.style.transform=""; });
+  }, 380);
+}
+function layoutWidgets(animate){
   if(!widgetsEl) return;
+  if(dragW) return;          // 拖拽进行中不重排，避免把被拖组件的占位高度算回去引起抖动
   var cs=getComputedStyle(widgetsEl);
   if(cs.display!=="grid") return;
+  var before=animate===false?null:widgetRectMap();
   var rowH=parseFloat(cs.gridAutoRows)||6, gap=14;
   var ws=$all(".widget", widgetsEl);
   for(var i=0;i<ws.length;i++){
@@ -52,6 +91,7 @@ function layoutWidgets(){
     var h=w.getBoundingClientRect().height; if(!h) continue;
     w.style.gridRowEnd="span "+Math.max(1, Math.ceil((h+gap)/rowH));
   }
+  if(animate!==false) animateWidgetMoves(before);
 }
 window.addEventListener("resize", scheduleWidgetLayout, {passive:true});
 
@@ -65,9 +105,10 @@ function clockBody(){
 function tickClock(){
   var el=$("#wTime"); if(!el) return;
   var d=new Date(), h=d.getHours(), m=d.getMinutes(), sec=d.getSeconds();
-  var ampm=h>=12?"PM":"AM", h12=h%12||12, mm=m<10?("0"+m):m;
-  var html='<span class="ch">'+h12+'</span><span class="csep">:</span><span class="ch">'+mm+'</span>';
-  html+='<span class="campm">'+ampm+'</span>';
+  var is24=!!state.settings.clock24h, ampm=h>=12?"PM":"AM", mm=m<10?("0"+m):m;
+  var hh=is24?(h<10?("0"+h):h):(h%12||12);
+  var html='<span class="ch">'+hh+'</span><span class="csep">:</span><span class="ch">'+mm+'</span>';
+  if(!is24) html+='<span class="campm">'+ampm+'</span>';
   if(state.settings.clockSeconds){
     var ss=sec<10?("0"+sec):sec;
     html+='<span class="csec">:'+ss+'</span>';
@@ -106,18 +147,53 @@ function searchBody(){
 function runWebSearch(q){ q=String(q||"").trim(); if(!q) return; var k=currentEngine(), e=ENGINES[k]||ENGINES.google; bumpEngineUsage(k); save(); window.open(e.url+encodeURIComponent(q),"_blank","noopener"); }
 
 var WMO={0:["Clear","☀️"],1:["Mainly clear","🌤️"],2:["Partly cloudy","⛅"],3:["Overcast","☁️"],45:["Fog","🌫️"],48:["Rime fog","🌫️"],51:["Light drizzle","🌦️"],53:["Drizzle","🌦️"],55:["Heavy drizzle","🌦️"],56:["Freezing drizzle","🌧️"],57:["Freezing drizzle","🌧️"],61:["Light rain","🌦️"],63:["Rain","🌧️"],65:["Heavy rain","🌧️"],66:["Freezing rain","🌧️"],67:["Freezing rain","🌧️"],71:["Light snow","🌨️"],73:["Snow","🌨️"],75:["Heavy snow","❄️"],77:["Snow grains","❄️"],80:["Showers","🌦️"],81:["Showers","🌦️"],82:["Heavy showers","⛈️"],85:["Snow showers","🌨️"],86:["Snow showers","🌨️"],95:["Thunderstorm","⛈️"],96:["Thunderstorm","⛈️"],99:["Thunderstorm","⛈️"]};
+var weatherSearchResults=[], weatherSearching=false, weatherSearchQuery="";
+function weatherLabel(g){
+  return [g.name, g.admin2, g.admin1, g.country_code||g.country].filter(Boolean).filter(function(v,i,a){ return a.indexOf(v)===i; }).join(", ");
+}
+function weatherPanel(){
+  if(ui.weatherPanel==="forecast") return weatherForecastPanel();
+  if(ui.weatherPanel==="search") return weatherSearchPanel();
+  return "";
+}
+function weatherForecastPanel(){
+  var d=weatherCache&&weatherCache.data, daily=d&&d.daily;
+  if(!daily||!daily.length) return "";
+  var unit=state.settings.weatherUnit==="f"?"°F":"°C";
+  var rows=daily.slice(0,7).map(function(day,i){
+    var info=WMO[day.code]||["",""];
+    var dt=new Date(day.date+"T12:00:00");
+    var name=i===0?t("today"):dt.toLocaleDateString(LOCALE[state.settings.lang],{weekday:"short"});
+    var pop=day.pop!=null?('<span class="wx-pop">'+Math.round(day.pop)+'%</span>'):"";
+    return '<div class="wx-day"><span class="wx-day-name">'+escapeHtml(name)+'</span><span class="wx-day-ico">'+info[1]+'</span><span class="wx-day-temp">'+Math.round(day.max)+unit+' / '+Math.round(day.min)+unit+'</span>'+pop+'</div>';
+  }).join("");
+  return '<div class="wx-panel"><div class="wx-panel-head"><b>'+escapeHtml(t("forecast7"))+'</b><button class="link-btn" data-wact="closePanel">'+escapeHtml(t("close"))+'</button></div>'+rows+'</div>';
+}
+function weatherSearchPanel(){
+  var results="";
+  if(weatherSearching) results='<div class="wx-msg">'+escapeHtml(t("searchingArea"))+'</div>';
+  else if(weatherSearchResults.length){
+    results='<div class="wx-results">'+weatherSearchResults.map(function(g,i){
+      return '<button type="button" data-wloc="'+i+'"><span>'+escapeHtml(weatherLabel(g))+'</span><small>'+escapeHtml([g.latitude&&Number(g.latitude).toFixed(2),g.longitude&&Number(g.longitude).toFixed(2)].filter(Boolean).join(", "))+'</small></button>';
+    }).join("")+'</div>';
+  } else if(weatherSearchQuery){
+    results='<div class="wx-msg">'+escapeHtml(t("cityNotFound"))+'</div>';
+  }
+  return '<div class="wx-panel"><div class="wx-panel-head"><b>'+escapeHtml(t("areaSearch"))+'</b><button class="link-btn" data-wact="closePanel">'+escapeHtml(t("close"))+'</button></div><form class="wx-set" id="wxSearchForm"><input type="text" id="wxSearchCity" value="'+escapeHtml(weatherSearchQuery)+'" placeholder="'+escapeHtml(t("enterCity"))+'" /><button class="btn primary" type="submit" style="height:36px;padding:0 12px;">'+escapeHtml(t("searchArea"))+'</button></form>'+results+'<button class="link-btn" data-wact="geo" style="margin-top:8px;">'+escapeHtml(t("useMyLocation"))+'</button></div>';
+}
 function weatherBody(){
   var s=state.settings;
   if(weatherCache&&weatherCache.data){
     var d=weatherCache.data, info=WMO[d.code]||["",""], unit=s.weatherUnit==="f"?"°F":"°C";
     return '<div class="wx"><div class="emoji">'+info[1]+'</div><div><div class="temp">'+Math.round(d.temp)+unit+'</div><div class="desc">'+escapeHtml(info[0])+'</div><div class="loc">'+escapeHtml(s.weather?s.weather.label:"")+'</div></div></div>'+
-      '<div class="wx-extra"><div>'+escapeHtml(t("wind"))+' <b>'+Math.round(d.wind)+(s.weatherUnit==="f"?" mph":" km/h")+'</b></div><div>'+escapeHtml(t("humidity"))+' <b>'+(d.hum!=null?d.hum+"%":"—")+'</b></div><div class="spacer"></div><div class="wx-unit"><button data-unit="c" class="'+(s.weatherUnit==="c"?"on":"")+'">°C</button><button data-unit="f" class="'+(s.weatherUnit==="f"?"on":"")+'">°F</button></div></div>';
+      '<div class="wx-extra"><div>'+escapeHtml(t("wind"))+' <b>'+Math.round(d.wind)+(s.weatherUnit==="f"?" mph":" km/h")+'</b></div><div>'+escapeHtml(t("humidity"))+' <b>'+(d.hum!=null?d.hum+"%":"—")+'</b></div><div class="spacer"></div><button class="link-btn" data-wact="forecast">'+escapeHtml(t("forecast7"))+'</button><button class="link-btn" data-wact="changeWeather">'+escapeHtml(t("changeArea"))+'</button><div class="wx-unit"><button data-unit="c" class="'+(s.weatherUnit==="c"?"on":"")+'">°C</button><button data-unit="f" class="'+(s.weatherUnit==="f"?"on":"")+'">°F</button></div></div>'+weatherPanel();
   }
   if(weatherCache&&weatherCache.error==="locate"){
-    return '<div class="wx-msg">'+escapeHtml(t("setLocation"))+'</div><form class="wx-set" id="wxForm"><input type="text" id="wxCity" placeholder="'+escapeHtml(t("enterCity"))+'" /><button class="btn primary" type="submit" style="height:36px;padding:0 12px;">'+escapeHtml(t("setBtn"))+'</button></form><button class="link-btn" data-wact="geo" style="margin-top:8px;">'+escapeHtml(t("useMyLocation"))+'</button>';
+    ui.weatherPanel="search";
+    return '<div class="wx-msg">'+escapeHtml(t("setLocation"))+'</div>'+weatherSearchPanel();
   }
   if(weatherCache&&weatherCache.error){
-    return '<div class="wx-msg">'+escapeHtml(t("couldntLoad"))+' <button class="link-btn" data-wact="retry">'+escapeHtml(t("retry"))+'</button></div><form class="wx-set" id="wxForm"><input type="text" id="wxCity" placeholder="'+escapeHtml(t("orEnterCity"))+'" /><button class="btn primary" type="submit" style="height:36px;padding:0 12px;">'+escapeHtml(t("setBtn"))+'</button></form>';
+    return '<div class="wx-msg">'+escapeHtml(t("couldntLoad"))+' <button class="link-btn" data-wact="retry">'+escapeHtml(t("retry"))+'</button></div>'+weatherSearchPanel();
   }
   return '<div class="wx-skel"></div>';
 }
@@ -136,8 +212,13 @@ function ensureWeather(){
 function fetchWeather(lat,lon){
   var s=state.settings, key=lat+","+lon+","+s.weatherUnit;
   var tu=s.weatherUnit==="f"?"fahrenheit":"celsius", wu=s.weatherUnit==="f"?"mph":"kmh";
-  var url="https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+"&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&temperature_unit="+tu+"&wind_speed_unit="+wu;
-  fetch(url).then(function(r){ return r.json(); }).then(function(j){ var c=j.current||{}; weatherCache={key:key,ts:Date.now(),data:{temp:c.temperature_2m,code:c.weather_code,wind:c.wind_speed_10m,hum:c.relative_humidity_2m}}; refreshWeatherDom(); }).catch(function(){ weatherCache={error:"net",ts:Date.now()}; refreshWeatherDom(); });
+  var url="https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+"&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days=7&timezone=auto&temperature_unit="+tu+"&wind_speed_unit="+wu;
+  fetch(url).then(function(r){ return r.json(); }).then(function(j){
+    var c=j.current||{}, dy=j.daily||{}, days=[];
+    (dy.time||[]).forEach(function(day,i){ days.push({date:day, code:(dy.weather_code||[])[i], max:(dy.temperature_2m_max||[])[i], min:(dy.temperature_2m_min||[])[i], pop:(dy.precipitation_probability_max||[])[i]}); });
+    weatherCache={key:key,ts:Date.now(),data:{temp:c.temperature_2m,code:c.weather_code,wind:c.wind_speed_10m,hum:c.relative_humidity_2m,daily:days}};
+    refreshWeatherDom();
+  }).catch(function(){ weatherCache={error:"net",ts:Date.now()}; refreshWeatherDom(); });
 }
 function refreshWeatherDom(){ var b=$("#wxBody"); if(b){ b.innerHTML=weatherBody(); layoutWidgets(); } }
 function refreshCalDom(){ var b=$("#calBody"); if(b){ b.innerHTML=calendarBody(); layoutWidgets(); } }
@@ -277,17 +358,29 @@ widgetsEl.addEventListener("click", function(e){
   var open=e.target.closest("[data-open]"); if(open){ openBookmark(open.getAttribute("data-open")); return; }
   var cal=e.target.closest("[data-cal]"); if(cal){ var a=cal.getAttribute("data-cal"); if(a==="prev"){ ui.calMonth--; if(ui.calMonth<0){ui.calMonth=11;ui.calYear--;} } else if(a==="next"){ ui.calMonth++; if(ui.calMonth>11){ui.calMonth=0;ui.calYear++;} } else { ui.calMonth=new Date().getMonth(); ui.calYear=new Date().getFullYear(); } refreshCalDom(); return; }
   var unit=e.target.closest("[data-unit]"); if(unit){ state.settings.weatherUnit=unit.getAttribute("data-unit"); save(); if(state.settings.weather) fetchWeather(state.settings.weather.lat,state.settings.weather.lon); return; }
-  var wact=e.target.closest("[data-wact]"); if(wact){ var act=wact.getAttribute("data-wact"); if(act==="geo"){ ui.geoTried=false; weatherCache=null; state.settings.weather=null; save(); refreshWeatherDom(); ensureWeather(); } else if(act==="retry"){ weatherCache=null; ui.geoTried=false; refreshWeatherDom(); ensureWeather(); } else if(act==="ipretry"){ netInfoCache=null; refreshNetInfoDom(); ensureNetInfo(); } return; }
+  var wloc=e.target.closest("[data-wloc]"); if(wloc){ selectWeatherResult(+wloc.getAttribute("data-wloc")); return; }
+  var wact=e.target.closest("[data-wact]"); if(wact){ var act=wact.getAttribute("data-wact"); if(act==="geo"){ ui.geoTried=false; ui.weatherPanel=""; weatherSearchResults=[]; weatherSearchQuery=""; weatherCache=null; state.settings.weather=null; save(); refreshWeatherDom(); ensureWeather(); } else if(act==="retry"){ weatherCache=null; ui.geoTried=false; refreshWeatherDom(); ensureWeather(); } else if(act==="forecast"){ ui.weatherPanel=ui.weatherPanel==="forecast"?"":"forecast"; refreshWeatherDom(); } else if(act==="changeWeather"){ ui.weatherPanel=ui.weatherPanel==="search"?"":"search"; refreshWeatherDom(); } else if(act==="closePanel"){ ui.weatherPanel=""; refreshWeatherDom(); } else if(act==="ipretry"){ netInfoCache=null; refreshNetInfoDom(); ensureNetInfo(); } return; }
 });
-widgetsEl.addEventListener("submit", function(e){ if(e.target.id==="wxForm"){ e.preventDefault(); var city=$("#wxCity").value.trim(); if(city) geocodeCity(city); } if(e.target.id==="gForm"){ e.preventDefault(); runWebSearch(e.target.elements.q&&e.target.elements.q.value); } });
+widgetsEl.addEventListener("submit", function(e){ if(e.target.id==="wxForm"||e.target.id==="wxSearchForm"){ e.preventDefault(); var inp=e.target.querySelector("input"); var city=inp&&inp.value.trim(); if(city) geocodeCity(city); } if(e.target.id==="gForm"){ e.preventDefault(); runWebSearch(e.target.elements.q&&e.target.elements.q.value); } });
 function refreshSearchWidget(){ var w=widgetsEl.querySelector('.widget[data-w="search"]'); if(w){ var head=w.querySelector('.w-head'); w.innerHTML=(head?head.outerHTML:"")+searchBody(); } }
 widgetsEl.addEventListener("error", function(e){ var tg=e.target; if(tg&&tg.classList&&tg.classList.contains("fav-img")) tg.classList.add("hide"); }, true);
 
 function geocodeCity(city){
-  fetch("https://geocoding-api.open-meteo.com/v1/search?count=1&name="+encodeURIComponent(city)).then(function(r){return r.json();}).then(function(j){
-    if(j&&j.results&&j.results.length){ var g=j.results[0]; var label=g.name+(g.admin1?(", "+g.admin1):"")+(g.country_code?(", "+g.country_code):""); state.settings.weather={lat:g.latitude,lon:g.longitude,label:label}; save(); weatherCache=null; refreshWeatherDom(); fetchWeather(g.latitude,g.longitude); toast(t("weatherSetTo",{city:g.name}),"ok"); }
-    else toast(t("cityNotFound"),"err");
-  }).catch(function(){ toast(t("couldntLookup"),"err"); });
+  weatherSearching=true; weatherSearchQuery=city; weatherSearchResults=[]; ui.weatherPanel="search"; refreshWeatherDom();
+  fetch("https://geocoding-api.open-meteo.com/v1/search?count=8&language="+encodeURIComponent(state.settings.lang==="zh"?"zh":state.settings.lang)+"&name="+encodeURIComponent(city)).then(function(r){return r.json();}).then(function(j){
+    weatherSearching=false;
+    weatherSearchResults=(j&&j.results)||[];
+    if(weatherSearchResults.length===1){ selectWeatherResult(0); return; }
+    if(!weatherSearchResults.length) toast(t("cityNotFound"),"err");
+    refreshWeatherDom();
+  }).catch(function(){ weatherSearching=false; refreshWeatherDom(); toast(t("couldntLookup"),"err"); });
+}
+function selectWeatherResult(idx){
+  var g=weatherSearchResults[idx]; if(!g) return;
+  var label=weatherLabel(g);
+  state.settings.weather={lat:g.latitude,lon:g.longitude,label:label};
+  save(); weatherCache=null; weatherSearchResults=[]; weatherSearchQuery=""; ui.weatherPanel="";
+  refreshWeatherDom(); fetchWeather(g.latitude,g.longitude); toast(t("weatherSetTo",{city:g.name}),"ok");
 }
 
 // widget reorder — drag the header area (entire .w-head, excluding buttons)
@@ -303,13 +396,14 @@ widgetsEl.addEventListener("dragstart", function(e){
   widgetsEl.classList.add("dragging-active");
   document.body.classList.add("no-select");
   wLastMove=null;
-  setTimeout(function(){ if(dragW) dragW.classList.add("draggingw"); },0);
+  // 拖拽时把被拖组件压成细条占位：移动它几乎不改变其它组件的瀑布流高度，避免重排抖动
+  setTimeout(function(){ if(dragW){ dragW.classList.add("draggingw"); dragW.style.gridRowEnd="span 9"; } },0);
 });
 var wLastMove=null;
 widgetsEl.addEventListener("dragover", function(e){
   if(!dragW) return; e.preventDefault(); e.dataTransfer.dropEffect="move";
-  // 抖动抑制：每次移动后指针需再移动一小段距离才重新判定，避免重排反馈循环（阈值调小，响应更跟手）
-  if(wLastMove&&Math.hypot(e.clientX-wLastMove.x,e.clientY-wLastMove.y)<5) return;
+  // 抖动抑制（迟滞）：上次成功重排后，指针需再移动一段距离才重新判定，避免重排反馈循环
+  if(wLastMove&&Math.hypot(e.clientX-wLastMove.x,e.clientY-wLastMove.y)<16) return;
   var pos=widgetAfter(e.clientX,e.clientY), moved=false;
   if(!pos.el){ if(widgetsEl.lastElementChild!==dragW){ widgetsEl.appendChild(dragW); moved=true; } }
   else if(pos.before){ if(pos.el!==dragW&&dragW.nextElementSibling!==pos.el){ widgetsEl.insertBefore(dragW,pos.el); moved=true; } }
@@ -317,7 +411,7 @@ widgetsEl.addEventListener("dragover", function(e){
   if(moved) wLastMove={x:e.clientX,y:e.clientY};
 });
 widgetsEl.addEventListener("drop", function(e){ if(dragW) e.preventDefault(); });
-widgetsEl.addEventListener("dragend", function(){ if(dragW) dragW.classList.remove("draggingw"); widgetsEl.classList.remove("dragging-active"); document.body.classList.remove("no-select"); commitWidgetOrder(); dragW=null; wLastMove=null; });
+widgetsEl.addEventListener("dragend", function(){ if(dragW){ dragW.classList.remove("draggingw"); dragW.style.gridRowEnd=""; } widgetsEl.classList.remove("dragging-active"); document.body.classList.remove("no-select"); commitWidgetOrder(); dragW=null; wLastMove=null; layoutWidgets(); });
 // 最近中心点判定：取指针到各组件中心距离最近者，再按指针处于其左/右半侧决定前/后插入。
 // 整块组件区域都参与命中（判定范围更大、更跟手），并适配瀑布流的错位高度。
 function widgetAfter(x,y){

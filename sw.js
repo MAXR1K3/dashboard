@@ -2,12 +2,12 @@
    改动任何 js/css 后请把 CACHE 版本号 +1，用户下次打开即自动更新。 */
 "use strict";
 
-var CACHE = "navi-v10";
+var CACHE = "navi-v20";
 var SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
-  "./css/app.css",
+  "./css/app.css?v=20",
   "./js/i18n.js",
   "./js/state.js",
   "./js/icons.js",

@@ -41,7 +41,19 @@ var confirmCb=null;
 function openConfirm(title,msg,okLabel,cb){ $("#confirmTitle").textContent=title; var msgEl=$("#confirmMsg"); msgEl.style.whiteSpace=""; msgEl.textContent=msg; $("#confirmOk").textContent=okLabel||t("delete"); confirmCb=cb; openOverlay("confirmOverlay"); }
 $("#confirmOk").addEventListener("click", function(){ closeOverlay("confirmOverlay"); if(confirmCb){ confirmCb(); confirmCb=null; } });
 var promptCb=null;
-function openPrompt(title,value,cb){ $("#promptTitle").textContent=title; var inp=$("#promptInput"); inp.value=value||""; promptCb=cb; openOverlay("promptOverlay"); setTimeout(function(){ inp.focus(); inp.select(); },50); }
-function submitPrompt(){ var v=$("#promptInput").value.trim(); closeOverlay("promptOverlay"); if(promptCb){ promptCb(v); promptCb=null; } }
+function openPrompt(title,value,cb,opts){
+  opts=opts||{};
+  $("#promptTitle").textContent=title;
+  var inp=$("#promptInput"); inp.value=value||"";
+  var pinRow=$("#promptPinRow");
+  if(pinRow){
+    pinRow.style.display=opts.pin?"":"none";
+    $("#promptPin").checked=!!opts.pinChecked;
+    $("#promptPinTitle").textContent=opts.pinTitle||"";
+    $("#promptPinDesc").textContent=opts.pinDesc||"";
+  }
+  promptCb=cb; openOverlay("promptOverlay"); setTimeout(function(){ inp.focus(); inp.select(); },50);
+}
+function submitPrompt(){ var v=$("#promptInput").value.trim(), pin=$("#promptPin"); closeOverlay("promptOverlay"); if(promptCb){ promptCb(v, pin&&pin.checked); promptCb=null; } }
 $("#promptSave").addEventListener("click", submitPrompt);
 $("#promptInput").addEventListener("keydown", function(e){ if(e.key==="Enter") submitPrompt(); });

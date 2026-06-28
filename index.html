@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="css/app.css" />
+  <link rel="stylesheet" href="css/app.css?v=20" />
 </head>
 <body>
   <div id="bgLayer"></div>
@@ -75,6 +75,7 @@
       <div class="bar">
         <div class="left">
           <div class="title" id="resultTitle"></div>
+          <span class="sync-chip" id="syncChip" hidden></span>
         </div>
         <div class="hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9h14M5 15h14M9 5v14M15 5v14"/></svg> <span data-i18n="dragReorder">Drag cards to reorder</span></div>
       </div>
@@ -106,6 +107,17 @@
           </div>
           <textarea id="bmDesc" data-i18n-ph="descPh"></textarea>
         </div>
+        <div class="field" id="bmOptionsField">
+          <label data-i18n="bookmarkOptions">Bookmark options</label>
+          <div class="set-row compact">
+            <div class="info"><div class="t" data-i18n="pinBookmark">Keep this bookmark position</div><div class="d" data-i18n="pinBookmarkDesc">Ignore browser sync order for this bookmark.</div></div>
+            <label class="switch"><input type="checkbox" id="bmPinned"><span class="track"></span></label>
+          </div>
+          <div class="set-row compact" id="bmHealthRow">
+            <div class="info"><div class="t" data-i18n="healthMenu">Link status</div><div class="d" data-i18n="healthManualDesc">Manually override the detected link status.</div></div>
+            <select id="bmHealth" class="sel"></select>
+          </div>
+        </div>
       </div>
       <div class="modal-foot"><button class="btn" data-close data-i18n="cancel">Cancel</button><button class="btn primary" id="bmSave">Save bookmark</button></div>
     </div>
@@ -114,7 +126,13 @@
   <div class="overlay" id="promptOverlay">
     <div class="modal" role="dialog" aria-modal="true">
       <div class="modal-head"><h2 id="promptTitle">Category</h2></div>
-      <div class="modal-body"><div class="field"><input id="promptInput" type="text" /></div></div>
+      <div class="modal-body">
+        <div class="field"><input id="promptInput" type="text" /></div>
+        <div class="set-row compact" id="promptPinRow" style="display:none">
+          <div class="info"><div class="t" id="promptPinTitle"></div><div class="d" id="promptPinDesc"></div></div>
+          <label class="switch"><input type="checkbox" id="promptPin"><span class="track"></span></label>
+        </div>
+      </div>
       <div class="modal-foot"><button class="btn" data-close data-i18n="cancel">Cancel</button><button class="btn primary" id="promptSave" data-i18n="save">Save</button></div>
     </div>
   </div>
@@ -164,6 +182,7 @@
       <div class="modal-body">
         <div class="set-tabs" id="setTabs">
           <button class="on" data-settab="general" data-i18n="setTabGeneral">General</button>
+          <button data-settab="sync" data-i18n="setTabSync">Sync</button>
           <button data-settab="appearance" data-i18n="setTabAppearance">Appearance</button>
           <button data-settab="dashboard" data-i18n="setTabDashboard">Dashboard</button>
           <button data-settab="services" data-i18n="setTabServices">Monitor &amp; AI</button>
@@ -217,7 +236,35 @@
             <button data-lang="en">English</button><button data-lang="zh">中文</button><button data-lang="es">Español</button>
           </div>
         </div>
+        <div class="set-section">
+          <h4 data-i18n="dataBackup">Data &amp; backup</h4>
+          <div class="set-row"><div class="info"><div class="t" data-i18n="exportJsonLabel">Export bookmarks.json</div><div class="d" data-i18n="exportJsonDesc">Download a full JSON backup (bookmarks, categories, settings)</div></div><button class="btn" id="exportJsonBtn" data-i18n="exportBtn">Export</button></div>
+          <div class="set-row"><div class="info"><div class="t" data-i18n="importJsonLabel">Import bookmarks.json</div><div class="d" data-i18n="importJsonDesc">Restore from a JSON backup file (replaces current data)</div></div><button class="btn" id="importJsonBtn" data-i18n="importBtnLabel">Import</button></div>
+          <div class="set-row"><div class="info"><div class="t" data-i18n="restorePrevLabel">Restore previous version</div><div class="d" data-i18n="restorePrevDesc">Revert to the snapshot saved before the last import/restore</div></div><button class="btn" id="restorePrevBtn" data-i18n="restoreBtn">Restore</button></div>
+        </div>
         </div><!-- /general -->
+        <div class="set-tab" data-tab="sync">
+        <div class="set-section">
+          <h4 data-i18n="profilesSec">Profiles &amp; data source</h4>
+          <div class="set-row">
+            <div class="info"><div class="t" data-i18n="activeProfile">Active profile</div><div class="d" data-i18n="activeProfileDesc">Switch the data source shown on your dashboard.</div></div>
+            <div style="display:flex;gap:8px;align-items:center"><select id="profileSelect" class="sel"></select><button class="btn" id="profileAdd" data-i18n="profileAdd">New</button></div>
+          </div>
+          <div class="field" style="margin-top:8px;"><label data-i18n="profileName">Profile name</label><input id="profileName" type="text" /></div>
+          <div class="set-row"><div class="info"><div class="t" data-i18n="profileType">Data source</div></div>
+            <div class="seg sm" id="profileTypeSeg"><button data-ptype="local" data-i18n="profileLocal">Local</button><button data-ptype="webdav" data-i18n="profileWebdav">WebDAV / NAS</button></div>
+          </div>
+          <div id="webdavFields" style="display:none">
+            <div class="field"><label data-i18n="webdavUrl">bookmarks.json URL</label><input id="webdavUrl" type="text" placeholder="https://nas.example.com/dav/bookmarks.json" /></div>
+            <div class="field"><div class="cat-input-row"><input id="webdavUser" type="text" data-i18n-ph="webdavUser" autocomplete="off" /><input id="webdavPass" type="password" data-i18n-ph="webdavPass" autocomplete="off" /></div></div>
+            <div class="set-row"><div class="info"><div class="t" data-i18n="webdavAuto">Auto-sync on open</div><div class="d" data-i18n="webdavAutoDesc">Fetch the latest on every open; otherwise use the cached copy.</div></div><label class="switch"><input type="checkbox" id="webdavAuto"><span class="track"></span></label></div>
+            <div class="set-row"><div class="info"><div class="t" data-i18n="webdavAutoUpload">Upload after browser sync</div><div class="d" data-i18n="webdavAutoUploadDesc">After Chrome or Edge bookmark sync finishes, write the latest bookmarks.json to WebDAV/NAS.</div></div><label class="switch"><input type="checkbox" id="webdavAutoUpload"><span class="track"></span></label></div>
+            <div class="set-row"><div class="info"><div class="t" data-i18n="syncStatusLabel">Sync status</div><div class="d" id="syncStatusLine"></div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><button class="btn" id="syncNowBtn" data-i18n="syncNow">Sync now</button><button class="btn primary" id="webdavUploadBtn" data-i18n="webdavUploadNow">Upload to NAS</button></div></div>
+            <div class="d" data-i18n="webdavCorsNote" style="font-size:12px;color:var(--text-faint);margin-top:6px;line-height:1.5;">PWA reads need CORS or a reverse proxy. The desktop extension can upload the same bookmarks.json with WebDAV PUT.</div>
+          </div>
+          <div class="set-row"><div class="info"><div class="t" data-i18n="profileDelete">Delete this profile</div><div class="d" data-i18n="profileDeleteDesc">Remove this profile and its cached data.</div></div><button class="btn danger" id="profileDelete" data-i18n="deleteBtn">Delete</button></div>
+        </div>
+        </div><!-- /sync -->
         <div class="set-tab" data-tab="appearance">
         <div class="set-section">
           <h4 data-i18n="appearance">Appearance</h4>
@@ -241,7 +288,7 @@
         <div class="set-section">
           <h4 data-i18n="background">Background</h4>
           <div class="set-row"><div class="info"><div class="t" data-i18n="bgStyle">Style</div></div>
-            <div class="seg sm" id="bgTypeSeg"><button data-bgtype="gradient" data-i18n="bgGradient">Gradient</button><button data-bgtype="image" data-i18n="bgImage">Image</button><button data-bgtype="live" data-i18n="bgLive">Live</button></div>
+            <div class="seg sm" id="bgTypeSeg"><button data-bgtype="gradient" data-i18n="bgGradient">Gradient</button><button data-bgtype="image" data-i18n="bgImage">Image</button><button data-bgtype="live" data-i18n="bgLive">Live</button><button data-bgtype="wallpaper" data-i18n="bgWallpaper">Wallpaper</button></div>
           </div>
           <div class="bg-live-row" id="bgLiveRow">
             <button class="bg-swatch" data-live="aurora" title="Aurora"><span class="sw-aurora"></span></button>
@@ -249,7 +296,24 @@
             <button class="bg-swatch" data-live="ocean" title="Ocean"><span class="sw-ocean"></span></button>
             <button class="bg-swatch" data-live="mesh" title="Mesh"><span class="sw-mesh"></span></button>
           </div>
-          <div class="set-row"><div class="info"><div class="t" data-i18n="bgImage">Image</div><div class="d" data-i18n="bgImageDesc">Use your own photo as wallpaper</div></div>
+	          <div class="bg-wall-row" id="bgWallRow" style="display:none">
+	            <button class="bg-cat" data-wallcat="nature" data-i18n="wpNature">Nature</button>
+	            <button class="bg-cat" data-wallcat="city" data-i18n="wpCity">City</button>
+	            <button class="bg-cat" data-wallcat="architecture" data-i18n="wpArchitecture">Architecture</button>
+            <button class="bg-cat" data-wallcat="landscape" data-i18n="wpLandscape">Landscape</button>
+            <button class="bg-cat" data-wallcat="space" data-i18n="wpSpace">Space</button>
+            <button class="bg-cat" data-wallcat="ocean" data-i18n="wpOcean">Ocean</button>
+            <button class="bg-cat" data-wallcat="minimal" data-i18n="wpMinimal">Minimal</button>
+	            <button class="bg-cat" data-wallcat="animals" data-i18n="wpAnimals">Animals</button>
+	            <button class="bg-cat bg-shuffle" data-wallshuffle="1" data-i18n="bgShuffle">Shuffle</button>
+	          </div>
+	          <div class="set-row" id="bgWallSourceRow" style="display:none"><div class="info"><div class="t" data-i18n="wpSource">Wallpaper source</div></div>
+	            <div class="seg sm" id="wallSourceSeg"><button data-wallsource="unsplash">Unsplash</button><button data-wallsource="bing">Bing</button><button data-wallsource="picsum">Picsum</button><button data-wallsource="loremflickr">LoremFlickr</button></div>
+	          </div>
+	          <div class="set-row" id="bgWallRotateRow" style="display:none"><div class="info"><div class="t" data-i18n="wpRotate">Auto change</div></div>
+	            <div class="seg sm" id="wallRotateSeg"><button data-wallrotate="0" data-i18n="wpRotateOff">Off</button><button data-wallrotate="15" data-i18n="wpRotate15">15 min</button><button data-wallrotate="30" data-i18n="wpRotate30">30 min</button><button data-wallrotate="60" data-i18n="wpRotate60">1 hour</button><button data-wallrotate="180" data-i18n="wpRotate180">3 hours</button><button data-wallrotate="360" data-i18n="wpRotate360">6 hours</button><button data-wallrotate="1440" data-i18n="wpRotate1440">Daily</button></div>
+	          </div>
+	          <div class="set-row"><div class="info"><div class="t" data-i18n="bgImage">Image</div><div class="d" data-i18n="bgImageDesc">Use your own photo as wallpaper</div></div>
             <div style="display:flex; gap:8px;"><button class="btn" id="bgUpload" data-i18n="upload">Upload</button><button class="btn" id="bgRemove" title="Reset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button></div>
           </div>
         </div>
@@ -265,6 +329,7 @@
           <h4 data-i18n="widgetsSec">Widgets</h4>
           <div class="set-row"><div class="info"><div class="t" data-i18n="clock">Clock &amp; date</div></div><label class="switch"><input type="checkbox" data-widget="clock"><span class="track"></span></label></div>
           <div class="set-row"><div class="info"><div class="t" data-i18n="showSeconds">Show seconds</div><div class="d" data-i18n="showSecondsDesc">Display seconds on the clock</div></div><label class="switch"><input type="checkbox" id="setSeconds"><span class="track"></span></label></div>
+          <div class="set-row"><div class="info"><div class="t" data-i18n="clock24h">24-hour time</div><div class="d" data-i18n="clock24hDesc">Show the clock in 24-hour format instead of AM/PM</div></div><label class="switch"><input type="checkbox" id="setClock24"><span class="track"></span></label></div>
           <div class="set-row"><div class="info"><div class="t" data-i18n="googleSearch">Google search</div></div><label class="switch"><input type="checkbox" data-widget="search"><span class="track"></span></label></div>
           <div class="set-row"><div class="info"><div class="t" data-i18n="weather">Weather</div><div class="d" data-i18n="weatherDesc">Uses your location or a city you set</div></div><label class="switch"><input type="checkbox" data-widget="weather"><span class="track"></span></label></div>
           <div class="set-row"><div class="info"><div class="t" data-i18n="ipWidget">IP &amp; location</div><div class="d" data-i18n="ipWidgetDesc">Show your public IP and approximate location</div></div><label class="switch"><input type="checkbox" data-widget="netinfo"><span class="track"></span></label></div>
@@ -355,6 +420,7 @@
   </div>
 
   <input type="file" id="fileInput" class="sr-file" accept=".html,.htm,text/html" />
+  <input type="file" id="jsonInput" class="sr-file" accept=".json,application/json" />
   <input type="file" id="logoInput" class="sr-file" accept="image/*" />
   <input type="file" id="bgInput" class="sr-file" accept="image/*" />
   <div class="toasts" id="toasts"></div>
@@ -387,6 +453,7 @@
 <script src="js/background.js"></script>
 <script src="js/monitor.js"></script>
 <script src="js/oplog.js"></script>
+<script src="js/sync.js"></script>
 <script src="js/pwa.js"></script>
 <script src="js/auto-theme.js"></script>
 <script src="js/app.js"></script>

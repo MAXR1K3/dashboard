@@ -4,6 +4,9 @@
 var BROWSER_ROOTS=["Bookmarks bar","Bookmarks Bar","Other bookmarks","Other Bookmarks","Mobile bookmarks","Mobile Bookmarks",
   "Favorites bar","Favorites Bar","Other favorites","Other Favorites","Mobile favorites","Mobile Favorites",
   "书签栏","其他书签","移动设备书签","收藏夹栏","其他收藏夹","移动收藏夹"];
+var BROWSER_BAR_ROOTS=["Bookmarks bar","Bookmarks Bar","Favorites bar","Favorites Bar","书签栏","收藏夹栏"];
+var BROWSER_OTHER_ROOTS=["Other bookmarks","Other Bookmarks","Other favorites","Other Favorites","其他书签","其他收藏夹"];
+var BROWSER_MOBILE_ROOTS=["Mobile bookmarks","Mobile Bookmarks","Mobile favorites","Mobile Favorites","移动设备书签","移动收藏夹"];
 
 function getExtApi(){ return (typeof chrome!=="undefined"&&chrome&&chrome.bookmarks)?chrome:((typeof browser!=="undefined"&&browser&&browser.bookmarks)?browser:null); }
 function isPromiseExtApi(api){ return typeof browser!=="undefined"&&api===browser; }
@@ -27,10 +30,49 @@ function sourceCat(src,cat,mode){
   if(isReservedCat(cat)) cat="Uncategorized";
   return mode==="separate" ? (sourceLabel(src)+" / "+cat) : cat;
 }
+function browserRootCategory(title){
+  if(BROWSER_BAR_ROOTS.indexOf(title)>-1) return t("catBookmarksBar");
+  if(BROWSER_OTHER_ROOTS.indexOf(title)>-1) return t("catOtherBookmarks");
+  if(BROWSER_MOBILE_ROOTS.indexOf(title)>-1) return t("catMobileBookmarks");
+  return "";
+}
 function syncNormForDup(u){ return normalizeUrl(u).replace(/\/+$/,"").toLowerCase(); }
 function bookmarkSource(b){ return b.syncSource||(b.chromeSyncId?"chrome":(b.edgeSyncId?"edge":(b.safariSyncId?"safari":"manual"))); }
 function bookmarkSyncId(b){ return b.syncId||b.chromeSyncId||b.edgeSyncId||b.safariSyncId||""; }
 function isSourceBookmark(b,src){ return bookmarkSource(b)===src; }
+function applyPinnedBookmarkOrder(beforeBookmarks, nextBookmarks){
+  var map={}, pinnedIds={}, placed={}, queue=[], out=[], qi=0;
+  nextBookmarks.forEach(function(b){ map[b.id]=b; if(b.pinned) pinnedIds[b.id]=true; else queue.push(b); });
+  beforeBookmarks.forEach(function(old){
+    var b=map[old.id];
+    if(b&&pinnedIds[old.id]){ out.push(b); placed[old.id]=true; }
+    else out.push(null);
+  });
+  for(var i=0;i<out.length;i++){
+    if(out[i]) continue;
+    while(qi<queue.length&&placed[queue[qi].id]) qi++;
+    if(qi<queue.length){ out[i]=queue[qi++]; placed[out[i].id]=true; }
+  }
+  for(;qi<queue.length;qi++){ if(!placed[queue[qi].id]) out.push(queue[qi]); }
+  nextBookmarks.forEach(function(b){ if(b.pinned&&!placed[b.id]) out.push(b); });
+  return out.filter(Boolean);
+}
+function applyPinnedCategoryOrder(oldCats, nextCats){
+  var pins=(state.settings&&state.settings.pinnedCategories)||{}, nextSet={}, used={}, queue=[], out=[], qi=0;
+  nextCats.forEach(function(c){ nextSet[c]=true; if(!pins[c]) queue.push(c); });
+  oldCats.forEach(function(c){
+    if(pins[c]&&nextSet[c]){ out.push(c); used[c]=true; }
+    else out.push(null);
+  });
+  for(var i=0;i<out.length;i++){
+    if(out[i]) continue;
+    while(qi<queue.length&&used[queue[qi]]) qi++;
+    if(qi<queue.length){ out[i]=queue[qi++]; used[out[i]]=true; }
+  }
+  for(;qi<queue.length;qi++){ if(!used[queue[qi]]) out.push(queue[qi]); }
+  nextCats.forEach(function(c){ if(pins[c]&&!used[c]) out.push(c); });
+  return out.filter(Boolean);
+}
 function canReadSelectedSource(){
   var src=syncSource();
   if(!hasChromeAPI()) return false;
@@ -46,11 +88,12 @@ function addSyncCat(out, seen, cat){
 function walkBrowserTree(nodes, parentCat, out){
   (nodes||[]).forEach(function(n){
     if(n.url){
-      if(isWebUrl(n.url)) out.push({ sid:String(n.id||n.url), title:(n.title||"").trim()||getDomain(n.url), url:n.url, cat:parentCat||"Uncategorized" });
+      if(isWebUrl(n.url)) out.push({ sid:String(n.id||n.url), title:(n.title||"").trim()||getDomain(n.url), url:n.url, cat:parentCat||t("catBookmarksBar") });
     } else if(n.children){
       var title=(n.title||"").trim();
       var isRoot=(!n.parentId||n.parentId==="0"||BROWSER_ROOTS.indexOf(title)>-1);
-      walkBrowserTree(n.children, isRoot?null:(chromeSafeCatName(title)||null)||parentCat, out);
+      var rootCat=isRoot?browserRootCategory(title):"";
+      walkBrowserTree(n.children, rootCat||((!isRoot&&(chromeSafeCatName(title)||null))||parentCat), out);
     }
   });
 }
@@ -64,6 +107,7 @@ function syncBookmarkFromItem(item, source, mode){
 }
 function markSyncedBookmark(b,item,source,mode){
   var cat=sourceCat(source,item.cat,mode);
+  var before=[b.syncSource||"", bookmarkSyncId(b), b.title||"", b.url||"", b.category||""].join("\u0001");
   b.syncSource=source; b.syncId=String(item.sid||syncNormForDup(item.url));
   if(source==="chrome") b.chromeSyncId=b.syncId;
   if(source==="edge") b.edgeSyncId=b.syncId;
@@ -72,19 +116,15 @@ function markSyncedBookmark(b,item,source,mode){
   if(item.title&&b.title!==item.title) b.title=item.title;
   if(b.url!==normalizeUrl(item.url)) b.url=normalizeUrl(item.url);
   if(b.category!==cat) b.category=cat;
+  return before!==[b.syncSource||"", bookmarkSyncId(b), b.title||"", b.url||"", b.category||""].join("\u0001");
 }
 function applyBookmarkItems(items, source, mode){
   source=source||syncSource(); mode=mode||syncMode();
   if(mode==="replace") mode="replaceAll";
-  var oldCats=state.categories.slice(), added=0, skipped=0;
-  if(mode==="replaceAll"){
-    state.bookmarks=[]; state.categories=[];
-  } else if(mode==="replaceSource"){
-    state.bookmarks=state.bookmarks.filter(function(b){ return !isSourceBookmark(b,source); });
-  }
+  var oldCats=state.categories.slice(), beforeBookmarks=state.bookmarks.slice(), added=0, updated=0, skipped=0, deduped=0;
 
   var byUrl={}, bySourceUrl={}, bySid={}, ordered=[], used={}, seenIncoming={}, sourceCats=[], sourceCatSeen={};
-  state.bookmarks.forEach(function(b){
+  beforeBookmarks.forEach(function(b){
     var urlKey=syncNormForDup(b.url), src=bookmarkSource(b), sid=bookmarkSyncId(b);
     if(!byUrl[urlKey]) byUrl[urlKey]=b;
     if(src===source){
@@ -95,16 +135,17 @@ function applyBookmarkItems(items, source, mode){
   (items||[]).forEach(function(item){
     if(!item||!isWebUrl(item.url)) return;
     var urlKey=syncNormForDup(item.url), sid=String(item.sid||urlKey), incomingKey=(mode==="merge"?"url:":"source:")+source+"|"+(mode==="merge"?urlKey:(sid||urlKey));
-    if(seenIncoming[incomingKey]){ skipped++; return; }
+    if(seenIncoming[incomingKey]){ skipped++; deduped++; return; }
     seenIncoming[incomingKey]=true;
     var cat=sourceCat(source,item.cat,mode);
     addSyncCat(sourceCats,sourceCatSeen,cat);
     var ex=null;
     if(mode==="merge") ex=bySid[sid]||byUrl[urlKey];
     else if(mode==="separate") ex=bySid[sid]||bySourceUrl[urlKey];
-    else if(mode==="replaceSource"||mode==="replaceAll") ex=null;
+    else if(mode==="replaceSource") ex=bySid[sid]||bySourceUrl[urlKey];
+    else if(mode==="replaceAll") ex=bySid[sid]||bySourceUrl[urlKey]||byUrl[urlKey];
     if(ex){
-      markSyncedBookmark(ex,item,source,mode);
+      if(markSyncedBookmark(ex,item,source,mode)) updated++;
       ordered.push(ex); used[ex.id]=true; skipped++;
     } else {
       var bm=syncBookmarkFromItem(item,source,mode);
@@ -112,19 +153,22 @@ function applyBookmarkItems(items, source, mode){
     }
   });
   var rest=[];
-  state.bookmarks.forEach(function(b){
+  beforeBookmarks.forEach(function(b){
     if(used[b.id]||b._seed) return;
+    if(mode==="replaceAll") return;
     if(isSourceBookmark(b,source)) return;
     rest.push(b);
   });
-  var seenCats={};
-  state.categories=sourceCats.slice();
-  state.categories.forEach(function(c){ seenCats[String(c).toLowerCase()]=true; });
-  state.bookmarks=ordered.concat(rest);
-  if(mode!=="replaceAll") oldCats.forEach(function(c){ addSyncCat(state.categories,seenCats,c); });
-  state.bookmarks.forEach(function(b){ addSyncCat(state.categories,seenCats,b.category); });
+  var seenCats={}, nextCats=sourceCats.slice(), nextBookmarks=ordered.concat(rest);
+  nextCats.forEach(function(c){ seenCats[String(c).toLowerCase()]=true; });
+  state.bookmarks=applyPinnedBookmarkOrder(beforeBookmarks,nextBookmarks);
+  if(mode!=="replaceAll") oldCats.forEach(function(c){ addSyncCat(nextCats,seenCats,c); });
+  state.bookmarks.forEach(function(b){ addSyncCat(nextCats,seenCats,b.category); });
+  state.categories=applyPinnedCategoryOrder(oldCats,nextCats);
   rebuildCategories();
-  return {added:added, skipped:skipped, total:ordered.length};
+  var afterIds={}; state.bookmarks.forEach(function(b){ afterIds[b.id]=true; });
+  var removed=beforeBookmarks.filter(function(b){ return !afterIds[b.id]; }).length;
+  return {added:added, updated:updated, removed:removed, skipped:skipped, deduped:deduped, total:ordered.length};
 }
 
 function getBookmarkTree(cb){
@@ -174,7 +218,9 @@ function runBrowserSync(onDone){
       state.settings.chromeSyncCount=state.settings.browserSyncCounts[source];
     }
     _csSyncing=false;
-    save(); render(); updateSyncUI();
+    if(typeof saveSilently==="function") saveSilently(); else save();
+    render(); updateSyncUI();
+    if(typeof maybeUploadBookmarksAfterBrowserSync==="function") maybeUploadBookmarksAfterBrowserSync(source, res);
     if(onDone) onDone(null, res.added, res);
   });
 }
@@ -222,6 +268,15 @@ var _syncUiTimer=null;
 function syncModeText(){
   var m=syncMode();
   return t("syncModeDesc_"+m);
+}
+function browserSyncResultText(res){
+  res=res||{};
+  return t("browserSyncDone", {
+    n:res.total||0,
+    a:res.added||0,
+    u:res.updated||0,
+    r:res.removed||0
+  });
 }
 function updateSyncUI(){
   var tog=document.getElementById("setChromeSync");
@@ -289,7 +344,7 @@ function extensionBackgroundText(){
   ].join("\n");
 }
 function downloadExtFiles(){
-  var mf=JSON.stringify({ manifest_version:3, name:"Navi — Private Bookmark Dashboard", version:"1.5", description:"Private bookmark dashboard with read-only browser bookmark sync. Open from the toolbar icon.", permissions:["bookmarks","storage","tabs"], host_permissions:["http://*/*","https://*/*"], action:{ default_title:"Navi", default_icon:{ "16":"icons/icon-192.png","32":"icons/icon-192.png","48":"icons/icon-192.png","128":"icons/icon-512.png" } }, icons:{ "192":"icons/icon-192.png","512":"icons/icon-512.png" }, background:{service_worker:"background.js"} }, null, 2);
+  var mf=JSON.stringify({ manifest_version:3, name:"Navi — Private Bookmark Dashboard", version:"1.5", description:"Private bookmark dashboard with browser bookmark sync and WebDAV bookmarks.json upload. Open from the toolbar icon.", permissions:["bookmarks","storage","tabs"], host_permissions:["http://*/*","https://*/*"], action:{ default_title:"Navi", default_icon:{ "16":"icons/icon-192.png","32":"icons/icon-192.png","48":"icons/icon-192.png","128":"icons/icon-512.png" } }, icons:{ "192":"icons/icon-192.png","512":"icons/icon-512.png" }, background:{service_worker:"background.js"} }, null, 2);
   downloadText("manifest.json", mf);
   setTimeout(function(){ downloadText("background.js", extensionBackgroundText()); }, 250);
 }
@@ -360,8 +415,8 @@ function initChromeSync(){
   attachChromeLive();
   var last=(state.settings.browserSyncLastSync||{})[syncSource()]||0, age=Date.now()-last;
   if(age>30*60*1000){
-    runBrowserSync(function(err, added){
-      if(!err&&added) toast(t("importedToast",{a:added}),"ok");
+    runBrowserSync(function(err, added, res){
+      if(!err&&res&&(res.added||res.updated||res.removed)) toast(browserSyncResultText(res),"ok");
     });
   }
   ensureSyncTimer();
@@ -399,7 +454,7 @@ if(syncNow) syncNow.addEventListener("click", function(){
   runBrowserSync(function(err){
     btn.disabled=false; btn.textContent=t("syncNow");
     if(err) toast(t("chromeSyncError"),"err");
-    else toast(t("syncedCount",{n:(state.settings.browserSyncCounts||{})[syncSource()]||0}),"ok");
+    else toast(browserSyncResultText(arguments[2]||{total:(state.settings.browserSyncCounts||{})[syncSource()]||0,added:0,updated:0,removed:0}),"ok");
   });
 });
 var safariImport=document.getElementById("safariImportBtn");

@@ -49,23 +49,18 @@ function applyPointerPlaceholder(){
   // 实时测量（拖拽中的卡片是 fixed 定位不占布局，placeholder 占据当前槽位）
   var items=els.map(function(c){ var b=c.getBoundingClientRect(); return {el:c,b:b,cx:b.left+b.width/2,cy:b.top+b.height/2}; });
   var x=dragPoint.x, y=dragPoint.y, target=null, before=true;
-  if(state.view==="list"){
-    // 列表模式：按 Y 轴找第一个中心点在指针下方的卡片
-    for(var i=0;i<items.length;i++){ if(y<items[i].cy){ target=items[i]; before=true; break; } }
-  } else {
-    // 网格模式：先按行分组定位指针所在行，再在行内按 X 轴判定插入点
-    items.sort(function(a,b){ return a.b.top-b.b.top||a.cx-b.cx; });
-    var rows=[], cur=null;
-    items.forEach(function(it){
-      if(!cur||it.b.top>=cur.bottom-it.b.height*0.5){ cur={top:it.b.top,bottom:it.b.bottom,items:[]}; rows.push(cur); }
-      cur.top=Math.min(cur.top,it.b.top); cur.bottom=Math.max(cur.bottom,it.b.bottom); cur.items.push(it);
-    });
-    var row=rows[rows.length-1];
-    for(var k=0;k<rows.length;k++){ if(y<=rows[k].bottom+5){ row=rows[k]; break; } }
-    row.items.sort(function(a,b){ return a.cx-b.cx; });
-    for(var m=0;m<row.items.length;m++){ if(x<row.items[m].cx){ target=row.items[m]; before=true; break; } }
-    if(!target){ target=row.items[row.items.length-1]; before=false; }
-  }
+  // 网格模式：先按行分组定位指针所在行，再在行内按 X 轴判定插入点
+  items.sort(function(a,b){ return a.b.top-b.b.top||a.cx-b.cx; });
+  var rows=[], cur=null;
+  items.forEach(function(it){
+    if(!cur||it.b.top>=cur.bottom-it.b.height*0.5){ cur={top:it.b.top,bottom:it.b.bottom,items:[]}; rows.push(cur); }
+    cur.top=Math.min(cur.top,it.b.top); cur.bottom=Math.max(cur.bottom,it.b.bottom); cur.items.push(it);
+  });
+  var row=rows[rows.length-1];
+  for(var k=0;k<rows.length;k++){ if(y<=rows[k].bottom+5){ row=rows[k]; break; } }
+  row.items.sort(function(a,b){ return a.cx-b.cx; });
+  for(var m=0;m<row.items.length;m++){ if(x<row.items[m].cx){ target=row.items[m]; before=true; break; } }
+  if(!target){ target=row.items[row.items.length-1]; before=false; }
   // 计算目标参照节点；若 placeholder 已在目标位置则不动
   var ref=null;
   if(target){

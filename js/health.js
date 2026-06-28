@@ -8,7 +8,8 @@ function healthTip(b){
   if(!b.health||!b.health.status||b.health.status==="unknown") return t("hUnknown");
   var ago=(typeof timeAgo==="function"&&b.health.ts)?timeAgo(b.health.ts):"";
   var key=b.health.status==="ok"?"hOk":(b.health.status==="bad"?"hBad":"hWarn");
-  return t(key,{ago:ago});
+  var tip=t(key,{ago:ago});
+  return b.health.manual ? (t("healthManual")+" · "+tip) : tip;
 }
 
 function checkLink(url, cb){
@@ -64,4 +65,11 @@ function healthCheckAll(){
     checkLink(url, function(st){ finishOne(b,st); });
   }
   for(var i=0;i<Math.min(6,total);i++) next();
+}
+
+function setBookmarkHealth(id,status){
+  var b=byId(id); if(!b) return;
+  if(!status||status==="unknown") delete b.health;
+  else b.health={status:status,ts:Date.now(),manual:true};
+  save(); renderContent(); toast(t("statusUpdated"),"ok");
 }

@@ -15,16 +15,18 @@ var _quickUndoId=null, _quickUndoTimer=null;
 function oplogSnapshotRef(){ return { bookmarks:state.bookmarks, categories:state.categories, trash:state.trash, theme:state.theme, view:state.view, settings:state.settings }; }
 function oplogClone(){ return JSON.parse(JSON.stringify(oplogSnapshotRef())); }
 function oplogInit(){ if(!Array.isArray(state.opLog)) state.opLog=[]; _committedSnap=oplogClone(); _oplogReady=true; }
+function oplogRebaseline(){ _committedSnap=oplogClone(); } // 重置基线：用于切换 Profile 等“非用户编辑”的整体数据替换后
+function saveSilently(){ _oplogSuspended=true; try{ save(); }finally{ _oplogSuspended=false; oplogRebaseline(); } } // 持久化但不写日志
 function oplogRestore(snap){
   state.bookmarks=JSON.parse(JSON.stringify(snap.bookmarks||[]));
   state.categories=JSON.parse(JSON.stringify(snap.categories||[]));
   state.trash=JSON.parse(JSON.stringify(snap.trash||[]));
-  state.theme=snap.theme||"light"; state.view=(snap.view==="list"?"list2":snap.view)||"grid";
+  state.theme=snap.theme||"light"; state.view=(snap.view==="list2"?"list":snap.view)||"grid";
   state.settings=JSON.parse(JSON.stringify(snap.settings||{}));
 }
 
 /* ===== diff helpers ===== */
-var OPLOG_VOLATILE={ engineUsage:1, weather:1, chromeSyncLastSync:1, chromeSyncCount:1, browserSyncLastSync:1, browserSyncCounts:1, powerProfileVersion:1, lowPower:1, animations:1, widgetsCollapsed:1, widgetsHidden:1 };
+var OPLOG_VOLATILE={ engineUsage:1, weather:1, chromeSyncLastSync:1, chromeSyncCount:1, browserSyncLastSync:1, browserSyncCounts:1, powerProfileVersion:1, lowPower:1, animations:1, widgetsCollapsed:1, widgetsHidden:1, profiles:1, activeProfile:1 };
 function bmContentEq(a,b){
   return a.title===b.title && a.url===b.url && a.category===b.category && a.description===b.description &&
     ((a.tags||[]).join(""))===((b.tags||[]).join(""));

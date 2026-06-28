@@ -3,15 +3,48 @@
 
 /* ===== categories mgmt ===== */
 function addCategory(){ openPrompt(t("newCategory"),"",function(v){ v=uniqueCatName(v); if(!v){ toast(t("categoryInvalid"),"err"); return; } state.categories.push(v); save(); setActiveCat(v); }); }
-function renameCategory(cat){ openPrompt(t("renameCat",{cat:catLabel(cat)}), cat, function(v){ v=uniqueCatName(v,cat); if(!v||v===cat) return; var i=state.categories.indexOf(cat); if(i>-1) state.categories[i]=v; state.bookmarks.forEach(function(b){ if(b.category===cat) b.category=v; }); if(ui.activeCat===cat) ui.activeCat=v; save(); render(); toast(t("categoryRenamed"),"ok"); }); }
+function toggleCategoryPinned(cat){
+  if(!cat||cat==="All") return;
+  if(!state.settings.pinnedCategories) state.settings.pinnedCategories={};
+  if(state.settings.pinnedCategories[cat]) delete state.settings.pinnedCategories[cat];
+  else state.settings.pinnedCategories[cat]=true;
+  save(); renderCategories();
+}
+function toggleBookmarkPinned(id){
+  var b=byId(id); if(!b) return;
+  b.pinned=!b.pinned;
+  save(); renderContent();
+}
+function renameCategory(cat){
+  openPrompt(t("categorySettings"), cat, function(v,pinned){
+    v=uniqueCatName(v,cat); if(!v) return;
+    if(!state.settings.pinnedCategories) state.settings.pinnedCategories={};
+    var renamed=v!==cat, i=state.categories.indexOf(cat);
+    if(renamed){
+      if(i>-1) state.categories[i]=v;
+      state.bookmarks.forEach(function(b){ if(b.category===cat) b.category=v; });
+      if(ui.activeCat===cat) ui.activeCat=v;
+      delete state.settings.pinnedCategories[cat];
+    }
+    if(pinned) state.settings.pinnedCategories[v]=true;
+    else delete state.settings.pinnedCategories[v];
+    save(); render(); toast(renamed?t("categoryRenamed"):t("categorySettingsSaved"),"ok");
+  }, {
+    pin:true,
+    pinChecked:isCatPinned(cat),
+    pinTitle:t("pinCategory"),
+    pinDesc:t("pinCategoryDesc")
+  });
+}
 // 删除分类（书签移入 Uncategorized）—— 完成后提供撤销入口
 function deleteCategory(cat){
   if(!cat||cat==="All") return;
   var n=state.bookmarks.filter(function(b){return b.category===cat;}).length;
   var msg=n?t("delCatMove",{n:n}):t("delCatEmpty");
   openConfirm(t("deleteCategory"), msg, t("delete"), function(){
-    var idx=state.categories.indexOf(cat), prevActive=ui.activeCat, movedIds=[];
+    var idx=state.categories.indexOf(cat), prevActive=ui.activeCat, movedIds=[], wasPinned=!!(state.settings.pinnedCategories&&state.settings.pinnedCategories[cat]);
     state.categories=state.categories.filter(function(c){return c!==cat;});
+    if(state.settings.pinnedCategories) delete state.settings.pinnedCategories[cat];
     state.bookmarks.forEach(function(b){ if(b.category===cat){ movedIds.push(b.id); b.category="Uncategorized"; } });
     var addedUncat=false;
     if(movedIds.length&&state.categories.indexOf("Uncategorized")===-1){ state.categories.push("Uncategorized"); addedUncat=true; }
@@ -19,6 +52,7 @@ function deleteCategory(cat){
     closeDrawerOverlay(); save(); render();
     toastUndo(t("categoryDeleted"), function(){
       if(state.categories.indexOf(cat)===-1) state.categories.splice(Math.max(0,Math.min(idx,state.categories.length)),0,cat);
+      if(wasPinned){ if(!state.settings.pinnedCategories) state.settings.pinnedCategories={}; state.settings.pinnedCategories[cat]=true; }
       if(addedUncat&&!state.bookmarks.some(function(b){ return b.category==="Uncategorized"&&movedIds.indexOf(b.id)===-1; }))
         state.categories=state.categories.filter(function(c){ return c!=="Uncategorized"; });
       var set={}; movedIds.forEach(function(id){ set[id]=true; });

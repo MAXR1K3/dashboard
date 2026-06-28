@@ -8,6 +8,7 @@ function openSettings(){
   $("#setTag").value=s.tagline||"";
   syncMotionUI();
   $("#setSeconds").checked=!!s.clockSeconds;
+  if($("#setClock24")) $("#setClock24").checked=!!s.clock24h;
   $("#setHolidays").checked=s.showHolidays!==false;
   $("#setLogoPreview").innerHTML=s.logo?'<img src="'+escapeHtml(s.logo)+'" alt=""/>':ICONS.bookmark;
   $all('[data-widget]').forEach(function(cb){ cb.checked=!!s.widgets[cb.getAttribute("data-widget")]; });
@@ -18,6 +19,7 @@ function openSettings(){
   $("#setGlass").checked=s.glass!==false;
   if($("#setHideHeader")) $("#setHideHeader").checked=!!s.hideHeaderOnScroll;
   if(typeof syncMonitorUI==="function") syncMonitorUI();
+  if(typeof syncProfileEditor==="function") syncProfileEditor();
   if(typeof syncLogRetentionUI==="function") syncLogRetentionUI();
   if(typeof renderOpLog==="function") renderOpLog();
   syncBgUI(); updateSyncUI(); openOverlay("settingsOverlay");
@@ -35,7 +37,8 @@ $("#setName").addEventListener("input", function(e){ state.settings.appName=e.ta
 $("#setTag").addEventListener("input", function(e){ state.settings.tagline=e.target.value; renderBrand(); save(); });
 $("#motionSeg").addEventListener("click", function(e){ var b=e.target.closest("[data-motion]"); if(!b) return; setMotionMode(b.getAttribute("data-motion")); });
 $("#setSeconds").addEventListener("change", function(e){ state.settings.clockSeconds=e.target.checked; save(); startClockTimer(); });
-$("#setHideHeader").addEventListener("change", function(e){ state.settings.hideHeaderOnScroll=e.target.checked; save(); if(!e.target.checked) document.body.classList.remove("header-hidden"); });
+$("#setClock24").addEventListener("change", function(e){ state.settings.clock24h=e.target.checked; save(); if(typeof tickClock==="function") tickClock(); });
+$("#setHideHeader").addEventListener("change", function(e){ state.settings.hideHeaderOnScroll=e.target.checked; state.settings.hideHeaderOnScrollUserSet=true; save(); if(typeof syncHeaderHidePreference==="function") syncHeaderHidePreference(); });
 $("#setHolidays").addEventListener("change", function(e){ state.settings.showHolidays=e.target.checked; save(); refreshCalDom(); });
 $all('[data-widget]').forEach(function(cb){ cb.addEventListener("change", function(){ state.settings.widgets[cb.getAttribute("data-widget")]=cb.checked; save(); renderWidgets(); }); });
 $("#langSeg").addEventListener("click", function(e){ var b=e.target.closest("[data-lang]"); if(!b) return; setLang(b.getAttribute("data-lang")); $all('#langSeg [data-lang]').forEach(function(x){ x.classList.toggle("on", x===b); }); });
@@ -79,5 +82,6 @@ function setActiveSetTab(tab){
   $all(".set-tab").forEach(function(p){ p.classList.toggle("on", p.getAttribute("data-tab")===tab); });
   var wrap=$(".set-tab-wrap"); if(wrap) wrap.scrollTop=0;
   if(tab==="log" && typeof renderOpLog==="function") renderOpLog();
+  if(tab==="sync" && typeof syncProfileEditor==="function") syncProfileEditor();
 }
 $("#setTabs").addEventListener("click", function(e){ var b=e.target.closest("[data-settab]"); if(b) setActiveSetTab(b.getAttribute("data-settab")); });

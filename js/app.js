@@ -9,3 +9,4 @@ if(typeof purgeOpLog==="function"){
   if(_logN!==(Array.isArray(state.opLog)?state.opLog.length:0)) save();
 }
 oplogInit(); applyI18n(); initPerformanceGuards(); render(); initAutoTheme(); initChromeSync();
+if(typeof initSync==="function") initSync();

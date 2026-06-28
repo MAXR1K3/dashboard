@@ -35,17 +35,22 @@ function load(){
     state.bookmarks=s.bookmarks; state.categories=Array.isArray(s.categories)?s.categories:[];
     state.trash=Array.isArray(s.trash)?s.trash:[];
     state.opLog=Array.isArray(s.opLog)?s.opLog:[];
-    state.theme=s.theme||"light"; state.view=(s.view==="list"?"list2":s.view)||"grid";
+    state.theme=s.theme||"light"; state.view=(s.view==="list2"?"list":s.view)||"grid";
     state.settings=Object.assign({}, d.settings, s.settings||{});
     state.settings.widgets=Object.assign({}, d.settings.widgets, (s.settings&&s.settings.widgets)||{});
     state.settings.widgetSize=Object.assign({}, d.settings.widgetSize, (s.settings&&s.settings.widgetSize)||{});
     state.settings.background=Object.assign({}, d.settings.background, (s.settings&&s.settings.background)||{});
     state.settings.browserSyncLastSync=Object.assign({}, d.settings.browserSyncLastSync, (s.settings&&s.settings.browserSyncLastSync)||{});
     state.settings.browserSyncCounts=Object.assign({}, d.settings.browserSyncCounts, (s.settings&&s.settings.browserSyncCounts)||{});
+    state.settings.pinnedCategories=Object.assign({}, d.settings.pinnedCategories, (s.settings&&s.settings.pinnedCategories)||{});
     if(!(s.settings&&s.settings.browserSyncSource)) state.settings.browserSyncSource=defaultBrowserSyncSource();
     if(!(s.settings&&s.settings.browserSyncMode)) state.settings.browserSyncMode=state.settings.chromeSyncReplace?"replaceAll":"merge";
     if(state.settings.chromeSyncLastSync&&!state.settings.browserSyncLastSync.chrome) state.settings.browserSyncLastSync.chrome=state.settings.chromeSyncLastSync;
     if(state.settings.chromeSyncCount&&!state.settings.browserSyncCounts.chrome) state.settings.browserSyncCounts.chrome=state.settings.chromeSyncCount;
+    if(!(s.settings&&s.settings.hideHeaderOnScrollUserSet)){
+      state.settings.hideHeaderOnScroll=false;
+      state.settings.hideHeaderOnScrollUserSet=false;
+    }
     if(state.settings.logRetention==null) state.settings.logRetention=2;
     if(!(s.settings&&s.settings.motionMode)) state.settings.motionMode=(state.settings.lowPower===false&&state.settings.animations)?"smooth":"low";
     if(!Array.isArray(state.settings.widgetOrder)) state.settings.widgetOrder=d.settings.widgetOrder.slice();
@@ -152,20 +157,34 @@ function markPowerBusy(){
   _scrollPowerTimer=setTimeout(function(){ document.body.classList.remove("is-scrolling"); _scrollPowerTimer=0; },180);
 }
 // 下滑隐藏顶栏 / 上滑（或回到顶部）复原 —— 仅在设置开启时生效
-var _lastHdrSY=0, _hdrHidden=false;
+var _lastHdrSY=0, _hdrHidden=false, _hdrDownAccum=0;
+function headerHideEnabled(){
+  return !!(state.settings&&state.settings.hideHeaderOnScroll&&state.settings.hideHeaderOnScrollUserSet);
+}
+function syncHeaderHidePreference(){
+  var enabled=headerHideEnabled();
+  document.body.classList.toggle("allow-header-hide", enabled);
+  if(!enabled){
+    document.body.classList.remove("header-hidden");
+    _hdrHidden=false; _hdrDownAccum=0;
+  }
+}
 function onHeaderScroll(){
   var y=window.pageYOffset||document.documentElement.scrollTop||0;
-  if(!(state.settings&&state.settings.hideHeaderOnScroll)||y<=64){
+  if(!headerHideEnabled()||y<=260){
     if(_hdrHidden){ document.body.classList.remove("header-hidden"); _hdrHidden=false; }
-    _lastHdrSY=y; return;
+    _hdrDownAccum=0; _lastHdrSY=y; return;
   }
   var dy=y-_lastHdrSY;
-  if(dy>6 && !_hdrHidden){ document.body.classList.add("header-hidden"); _hdrHidden=true; }
-  else if(dy<-6 && _hdrHidden){ document.body.classList.remove("header-hidden"); _hdrHidden=false; }
+  if(dy>0) _hdrDownAccum+=dy;
+  else if(dy<0) _hdrDownAccum=0;
+  if(dy>6 && !_hdrHidden && _hdrDownAccum>96){ document.body.classList.add("header-hidden"); _hdrHidden=true; }
+  else if(dy<-6 && _hdrHidden){ document.body.classList.remove("header-hidden"); _hdrHidden=false; _hdrDownAccum=0; }
   _lastHdrSY=y;
 }
 function initPerformanceGuards(){
   if(_powerGuardsReady) return; _powerGuardsReady=true;
+  syncHeaderHidePreference();
   window.addEventListener("scroll", markPowerBusy, {passive:true,capture:true});
   window.addEventListener("scroll", onHeaderScroll, {passive:true});
   window.addEventListener("wheel", markPowerBusy, {passive:true});

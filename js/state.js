@@ -14,16 +14,17 @@ function defaults(){
     bookmarks:[], categories:[], trash:[], opLog:[], theme:"light", view:"grid",
     settings:{
       appName:"Navi", tagline:"", logo:null, lang:"en", motionMode:"low", lowPower:true, animations:false,
-      widgetsCollapsed:false, widgetsHidden:false, clockSeconds:false, showHolidays:true, categoryLayout:"tabs", hideHeaderOnScroll:false,
+      widgetsCollapsed:false, widgetsHidden:false, clockSeconds:false, clock24h:false, showHolidays:true, categoryLayout:"tabs", hideHeaderOnScroll:false, hideHeaderOnScrollUserSet:false,
       widgets:{ clock:true, search:true, weather:true, netinfo:true, calendar:true, frequent:true, recent:true, monitor:false },
       widgetOrder:["clock","search","weather","netinfo","calendar","frequent","recent","monitor"],
       widgetSize:{ clock:1, search:2, weather:1, netinfo:1, calendar:1, frequent:1, recent:1, monitor:2 },
       weather:null, weatherUnit:"c", searchEngine:"google", engineUsage:{},
       chromeSync:false, chromeSyncReplace:false, chromeSyncLastSync:0, chromeSyncCount:0,
-      browserSyncSource:defaultBrowserSyncSource(), browserSyncMode:"merge", browserSyncLastSync:{}, browserSyncCounts:{},
+      browserSyncSource:defaultBrowserSyncSource(), browserSyncMode:"merge", browserSyncLastSync:{}, browserSyncCounts:{}, pinnedCategories:{},
       trashRetention:7, logRetention:2, aiProvider:"local", aiKey:"",
-      glass:false, glassOpacity:45, refraction:false, background:{ type:"gradient", live:"aurora", image:null },
+      glass:false, glassOpacity:45, refraction:false, background:{ type:"gradient", live:"aurora", image:null, wallpaperCat:"nature", wallpaperSource:"unsplash", wallpaperRotate:30 },
       autoThemeCoords:null,
+      profiles:[{ id:"local", name:"Local", type:"local" }], activeProfile:"local",
       powerProfileVersion:POWER_PROFILE_VERSION
     }
   };

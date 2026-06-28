@@ -11,7 +11,7 @@ $("#themeBtn").addEventListener("click", function(){
   if(state.theme==="auto"&&typeof scheduleAutoTheme==="function"){ scheduleAutoTheme(); requestAutoThemeGeo(); }
   else if(typeof _autoThemeTimer!=="undefined"&&_autoThemeTimer){ clearTimeout(_autoThemeTimer); _autoThemeTimer=null; }
 });
-$("#viewBtn").addEventListener("click", function(){ state.view=state.view==="grid"?"list2":"grid"; save(); renderContent(); $("#viewBtn").innerHTML=viewBtnIcon(); });
+$("#viewBtn").addEventListener("click", function(){ state.view=state.view==="grid"?"list":"grid"; save(); renderContent(); $("#viewBtn").innerHTML=viewBtnIcon(); });
 $("#langBtn").addEventListener("click", function(){ var i=LANGS.indexOf(state.settings.lang); setLang(LANGS[(i+1)%LANGS.length]); });
 $("#search").addEventListener("input", function(e){ ui.query=e.target.value; renderContent(); });
 $("#widgetsToggle").addEventListener("click", function(){
