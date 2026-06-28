@@ -290,6 +290,81 @@
   body.is-scrolling .widget:hover{
     transform:none !important;
   }
+  body.android-chrome{
+    --shadow-card:0 1px 2px rgba(16,24,40,.07);
+    --shadow-pop:0 8px 22px rgba(16,24,40,.14);
+  }
+  [data-theme="dark"] body.android-chrome{
+    --shadow-card:0 1px 2px rgba(0,0,0,.32);
+    --shadow-pop:0 10px 28px rgba(0,0,0,.42);
+  }
+  body.android-chrome #bgLayer,
+  body.android-chrome .grid,
+  body.android-chrome .card,
+  body.android-chrome .widget,
+  body.android-chrome .mini,
+  body.android-chrome .tab{
+    animation:none !important;
+  }
+  body.android-chrome #bgLayer{ transition:none !important; }
+  body.android-chrome #bgLayer.live::before,
+  body.android-chrome #bgLayer.live::after{
+    animation:none !important;
+    transform:none !important;
+    will-change:auto !important;
+  }
+  body.android-chrome header::before,
+  body.android-chrome .actions,
+  body.android-chrome .widget,
+  body.android-chrome .modal,
+  body.android-chrome .menu,
+  body.android-chrome .dd-menu,
+  body.android-chrome .drawer-inner,
+  body.android-chrome .selbar,
+  body.android-chrome .overlay,
+  body.android-chrome .drawer-backdrop.show{
+    -webkit-backdrop-filter:none !important;
+    backdrop-filter:none !important;
+  }
+  body.android-chrome header::before{
+    background:var(--surface) !important;
+  }
+  body.android-chrome.glass .card,
+  body.android-chrome.glass .widget,
+  body.android-chrome.glass .modal,
+  body.android-chrome.glass .menu,
+  body.android-chrome.glass .dd-menu,
+  body.android-chrome.glass .drawer-inner,
+  body.android-chrome.glass .selbar{
+    background:var(--surface) !important;
+  }
+  body.android-chrome.is-scrolling *,
+  body.android-chrome.is-scrolling *::before,
+  body.android-chrome.is-scrolling *::after{
+    animation:none !important;
+    transition:none !important;
+  }
+  body.android-chrome.is-scrolling .card,
+  body.android-chrome.is-scrolling .widget,
+  body.android-chrome.is-scrolling .tab,
+  body.android-chrome.is-scrolling .mini{
+    transform:none !important;
+    filter:none !important;
+    opacity:1 !important;
+  }
+  body.android-chrome .wx-skel,
+  body.android-chrome .mon-skel{
+    animation:none !important;
+    background:var(--surface-2) !important;
+  }
+  @supports (content-visibility:auto){
+    body.android-chrome .grid .card,
+    body.android-chrome .grid.list .card,
+    body.android-chrome .grid.list2 .card{
+      content-visibility:visible;
+      contain-intrinsic-block-size:auto;
+    }
+  }
 
   /* Header — blur lives on a ::before pseudo, NOT on <header> itself, so that
      header is not a containing block for position:fixed children (the mobile

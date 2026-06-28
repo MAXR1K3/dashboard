@@ -128,6 +128,10 @@ function applyI18n(){
 
 /* ===== performance / brand / anim ===== */
 var _scrollPowerTimer=0, _powerGuardsReady=false;
+function isAndroidChrome(){
+  var ua=(navigator&&navigator.userAgent)||"";
+  return /Android/i.test(ua) && /Chrome\//i.test(ua) && !/(EdgA|Edg\/|OPR\/|SamsungBrowser|Firefox)/i.test(ua);
+}
 function currentMotionMode(){ return state.settings.motionMode==="smooth"?"smooth":"low"; }
 function syncMotionSettings(){
   var smooth=currentMotionMode()==="smooth";
@@ -148,6 +152,7 @@ function syncMotionUI(){
 }
 function applyPerformanceMode(){
   var mode=currentMotionMode();
+  document.body.classList.toggle("android-chrome", isAndroidChrome());
   document.body.classList.toggle("low-power", mode==="low");
   document.body.classList.toggle("smooth-motion", mode==="smooth");
 }
