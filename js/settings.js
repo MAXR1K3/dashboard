@@ -22,6 +22,7 @@ function openSettings(){
   if(typeof syncProfileEditor==="function") syncProfileEditor();
   if(typeof syncLogRetentionUI==="function") syncLogRetentionUI();
   if(typeof renderOpLog==="function") renderOpLog();
+  if(typeof applyPwaReaderSettingsVisibility==="function") applyPwaReaderSettingsVisibility();
   syncBgUI(); updateSyncUI(); openOverlay("settingsOverlay");
 }
 

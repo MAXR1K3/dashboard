@@ -47,8 +47,8 @@ function healthCheckAll(){
   _healthRun=true;
   toast(t("healthRunning"),"");
   var total=list.length, done=0, counts={ok:0,bad:0,warn:0}, qi=0;
-  function finishOne(b,st){
-    b.health={status:st,ts:Date.now()};
+  function finishOne(b,st,keepManual){
+    if(!keepManual) b.health={status:st,ts:Date.now()};
     counts[st]=(counts[st]||0)+1; done++;
     updateHealthDot(b);
     if(done>=total){
@@ -61,6 +61,7 @@ function healthCheckAll(){
   function next(){
     if(qi>=list.length) return;
     var b=list[qi++], url=normalizeUrl(b.url);
+    if(b.health&&b.health.manual&&b.health.status){ finishOne(b,b.health.status,true); return; }
     if(!isWebUrl(url)){ finishOne(b,"bad"); return; }
     checkLink(url, function(st){ finishOne(b,st); });
   }

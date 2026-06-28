@@ -38,6 +38,7 @@
     --bg-scrim:linear-gradient(180deg,rgba(8,9,14,.38),rgba(8,9,14,.60));
   }
   *{ box-sizing:border-box; }
+  .pwa-reader [data-pwa-reader-hidden]{ display:none !important; }
   html,body{ height:100%; }
   body{
     margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"PingFang SC","Microsoft YaHei",Helvetica,Arial,sans-serif;

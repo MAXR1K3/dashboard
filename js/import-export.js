@@ -54,9 +54,65 @@ function exportBookmarks(){ if(!state.bookmarks.length){ toast(t("nothingToExpor
 
 /* ===== JSON 备份（canonical bookmarks.json：数据与界面分离后的统一数据载体） ===== */
 var BACKUP_PREV_KEY="navi.dashboard.prev";
+function clonePlain(obj){ return JSON.parse(JSON.stringify(obj)); }
+function mergeDashboardSettings(baseSettings, incomingSettings, opts){
+  opts=opts||{};
+  var d=defaults(), base=baseSettings||d.settings, incoming=incomingSettings||{};
+  var merged=Object.assign({}, d.settings, incoming);
+  merged.widgets=Object.assign({}, d.settings.widgets, incoming.widgets||{});
+  merged.widgetSize=Object.assign({}, d.settings.widgetSize, incoming.widgetSize||{});
+  merged.background=Object.assign({}, d.settings.background, incoming.background||{});
+  merged.engineUsage=Object.assign({}, d.settings.engineUsage, incoming.engineUsage||{});
+  merged.browserSyncLastSync=Object.assign({}, d.settings.browserSyncLastSync, incoming.browserSyncLastSync||{});
+  merged.browserSyncCounts=Object.assign({}, d.settings.browserSyncCounts, incoming.browserSyncCounts||{});
+  merged.pinnedCategories=Object.assign({}, d.settings.pinnedCategories, incoming.pinnedCategories||{});
+  if(opts.preserveProfiles){
+    merged.profiles=clonePlain(base.profiles||d.settings.profiles);
+    merged.activeProfile=base.activeProfile||"local";
+  } else if(Array.isArray(incoming.profiles)){
+    merged.profiles=clonePlain(incoming.profiles);
+  } else {
+    merged.profiles=clonePlain(base.profiles||d.settings.profiles);
+  }
+  if(opts.preservePrivate){
+    merged.aiKey=base.aiKey||"";
+  }
+  if(!Array.isArray(merged.widgetOrder)) merged.widgetOrder=d.settings.widgetOrder.slice();
+  return merged;
+}
+function derivePayloadCats(items){
+  var seen={}, out=[];
+  (items||[]).forEach(function(b){ var c=cleanCatName(b.category)||"Uncategorized", k=c.toLowerCase(); if(!seen[k]){ seen[k]=1; out.push(c); } });
+  return out;
+}
+function normalizeBookmarkPayload(b){
+  var out=Object.assign({}, b||{});
+  out.id=out.id||uid();
+  out.title=String(out.title||out.name||getDomain(out.url||out.href||"")||"");
+  out.url=normalizeUrl(out.url||out.href||"");
+  out.category=cleanCatName(out.category||out.folder)||"Uncategorized";
+  if(isReservedCat(out.category)) out.category="Uncategorized";
+  out.description=typeof out.description==="string"?out.description:"";
+  out.tags=Array.isArray(out.tags)?out.tags:[];
+  if(typeof out.clicks!=="number") out.clicks=0;
+  if(typeof out.lastOpened!=="number") out.lastOpened=0;
+  return out;
+}
+function normalizeDashboardPayload(obj, opts){
+  opts=opts||{};
+  if(!obj||!Array.isArray(obj.bookmarks)) return null;
+  var out={};
+  out.bookmarks=obj.bookmarks.map(normalizeBookmarkPayload).filter(function(b){ return isWebUrl(b.url); });
+  out.categories=Array.isArray(obj.categories)?obj.categories.map(cleanCatName).filter(Boolean):derivePayloadCats(out.bookmarks);
+  out.trash=Array.isArray(obj.trash)?clonePlain(obj.trash):[];
+  out.theme=obj.theme||state.theme||"light";
+  out.view=(obj.view==="list2"?"list":obj.view)||state.view||"grid";
+  out.settings=obj.settings&&typeof obj.settings==="object" ? mergeDashboardSettings(state.settings, obj.settings, opts) : null;
+  return out;
+}
 function buildBackup(){
   return { schema:"navi-bookmarks", version:3, app:state.settings.appName||"Navi", exportedAt:new Date().toISOString(),
-    bookmarks:state.bookmarks, categories:state.categories, trash:state.trash, settings:state.settings };
+    theme:state.theme, view:state.view, bookmarks:state.bookmarks, categories:state.categories, trash:state.trash, settings:state.settings };
 }
 function downloadBlob(text, mime, name){
   var blob=new Blob([text],{type:mime}), a=document.createElement("a");
@@ -71,14 +127,17 @@ function exportJSON(){
     toast(t("backupExported"),"ok");
   }catch(e){ toast(t("couldntRead"),"err"); }
 }
-function snapshotPrev(){ try{ localStorage.setItem(BACKUP_PREV_KEY, JSON.stringify({ bookmarks:state.bookmarks, categories:state.categories, trash:state.trash, settings:state.settings, savedAt:Date.now() })); }catch(e){} }
+function snapshotPrev(){ try{ localStorage.setItem(BACKUP_PREV_KEY, JSON.stringify({ bookmarks:state.bookmarks, categories:state.categories, trash:state.trash, theme:state.theme, view:state.view, settings:state.settings, savedAt:Date.now() })); }catch(e){} }
 function applyBackupObj(obj){
-  if(!obj||!Array.isArray(obj.bookmarks)){ toast(t("backupInvalid"),"err"); return false; }
+  var data=normalizeDashboardPayload(obj,{});
+  if(!data){ toast(t("backupInvalid"),"err"); return false; }
   snapshotPrev(); // 覆盖前先存一份，可“恢复上一个版本”
-  state.bookmarks=obj.bookmarks;
-  state.categories=Array.isArray(obj.categories)?obj.categories:[];
-  if(Array.isArray(obj.trash)) state.trash=obj.trash;
-  if(obj.settings&&typeof obj.settings==="object"){ var d=defaults(); state.settings=Object.assign({}, d.settings, obj.settings); state.settings.widgets=Object.assign({}, d.settings.widgets, obj.settings.widgets||{}); }
+  state.bookmarks=data.bookmarks;
+  state.categories=data.categories;
+  state.trash=data.trash;
+  state.theme=data.theme;
+  state.view=data.view;
+  if(data.settings) state.settings=data.settings;
   ui.activeCat="All"; ui.selected={};
   rebuildCategories(); normalizeWidgetOrder();
   save(); applyI18n(); render();

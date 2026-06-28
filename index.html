@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="css/app.css?v=20" />
+  <link rel="stylesheet" href="css/app.css?v=22" />
 </head>
 <body>
   <div id="bgLayer"></div>
@@ -190,7 +190,7 @@
         </div>
         <div class="set-tab-wrap">
         <div class="set-tab on" data-tab="general">
-        <div class="set-section" id="chromeSyncSection">
+        <div class="set-section" id="chromeSyncSection" data-pwa-reader-hidden>
           <h4 data-i18n="browserSync">Browser bookmark sync</h4>
           <div class="set-row">
             <div class="info">
@@ -258,8 +258,8 @@
             <div class="field"><label data-i18n="webdavUrl">bookmarks.json URL</label><input id="webdavUrl" type="text" placeholder="https://nas.example.com/dav/bookmarks.json" /></div>
             <div class="field"><div class="cat-input-row"><input id="webdavUser" type="text" data-i18n-ph="webdavUser" autocomplete="off" /><input id="webdavPass" type="password" data-i18n-ph="webdavPass" autocomplete="off" /></div></div>
             <div class="set-row"><div class="info"><div class="t" data-i18n="webdavAuto">Auto-sync on open</div><div class="d" data-i18n="webdavAutoDesc">Fetch the latest on every open; otherwise use the cached copy.</div></div><label class="switch"><input type="checkbox" id="webdavAuto"><span class="track"></span></label></div>
-            <div class="set-row"><div class="info"><div class="t" data-i18n="webdavAutoUpload">Upload after browser sync</div><div class="d" data-i18n="webdavAutoUploadDesc">After Chrome or Edge bookmark sync finishes, write the latest bookmarks.json to WebDAV/NAS.</div></div><label class="switch"><input type="checkbox" id="webdavAutoUpload"><span class="track"></span></label></div>
-            <div class="set-row"><div class="info"><div class="t" data-i18n="syncStatusLabel">Sync status</div><div class="d" id="syncStatusLine"></div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><button class="btn" id="syncNowBtn" data-i18n="syncNow">Sync now</button><button class="btn primary" id="webdavUploadBtn" data-i18n="webdavUploadNow">Upload to NAS</button></div></div>
+            <div class="set-row" data-pwa-reader-hidden><div class="info"><div class="t" data-i18n="webdavAutoUpload">Upload after browser sync</div><div class="d" data-i18n="webdavAutoUploadDesc">After Chrome or Edge bookmark sync finishes, write the latest bookmarks.json to WebDAV/NAS.</div></div><label class="switch"><input type="checkbox" id="webdavAutoUpload"><span class="track"></span></label></div>
+            <div class="set-row"><div class="info"><div class="t" data-i18n="syncStatusLabel">Sync status</div><div class="d" id="syncStatusLine"></div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><button class="btn" id="syncNowBtn" data-i18n="syncNow">Sync now</button><button class="btn primary" id="webdavUploadBtn" data-i18n="webdavUploadNow" data-pwa-reader-hidden>Upload to NAS</button></div></div>
             <div class="d" data-i18n="webdavCorsNote" style="font-size:12px;color:var(--text-faint);margin-top:6px;line-height:1.5;">PWA reads need CORS or a reverse proxy. The desktop extension can upload the same bookmarks.json with WebDAV PUT.</div>
           </div>
           <div class="set-row"><div class="info"><div class="t" data-i18n="profileDelete">Delete this profile</div><div class="d" data-i18n="profileDeleteDesc">Remove this profile and its cached data.</div></div><button class="btn danger" id="profileDelete" data-i18n="deleteBtn">Delete</button></div>

@@ -21,23 +21,47 @@ function profileDisplayName(p){ if(!p) return ""; if(p.id==="local"&&(!p.name||p
 function deriveCats(items){ var seen={},out=[]; (items||[]).forEach(function(b){ var c=b.category||"Uncategorized"; if(!seen[c]){ seen[c]=1; out.push(c); } }); return out; }
 
 /* ----- per-profile data cache ----- */
-function cacheProfileData(id, data){ try{ localStorage.setItem(PDATA_PREFIX+id, JSON.stringify({ bookmarks:data.bookmarks||[], categories:data.categories||[], at:Date.now() })); }catch(e){} }
+function profileDataSnapshot(extra){
+  return Object.assign({
+    bookmarks:state.bookmarks, categories:state.categories, trash:state.trash,
+    theme:state.theme, view:state.view, settings:state.settings
+  }, extra||{});
+}
+function cacheProfileData(id, data){
+  try{
+    localStorage.setItem(PDATA_PREFIX+id, JSON.stringify({
+      bookmarks:data.bookmarks||[], categories:data.categories||[], trash:Array.isArray(data.trash)?data.trash:[],
+      theme:data.theme||"light", view:(data.view==="list2"?"list":data.view)||"grid",
+      settings:data.settings||null, at:Date.now()
+    }));
+  }catch(e){}
+}
 function loadProfileData(id){ try{ var raw=localStorage.getItem(PDATA_PREFIX+id); if(raw){ var d=JSON.parse(raw); if(Array.isArray(d.bookmarks)) return d; } }catch(e){} return null; }
 function dropProfileData(id){ try{ localStorage.removeItem(PDATA_PREFIX+id); }catch(e){} }
+function applyProfileData(data){
+  state.bookmarks=data&&Array.isArray(data.bookmarks)?cloneJson(data.bookmarks):[];
+  state.categories=data&&Array.isArray(data.categories)?cloneJson(data.categories):[];
+  state.trash=data&&Array.isArray(data.trash)?cloneJson(data.trash):[];
+  if(data&&data.theme) state.theme=data.theme;
+  if(data&&data.view) state.view=(data.view==="list2"?"list":data.view)||"grid";
+  if(data&&data.settings&&typeof mergeDashboardSettings==="function"){
+    state.settings=mergeDashboardSettings(state.settings, data.settings, {preserveProfiles:true, preservePrivate:true});
+  }
+  ui.activeCat="All"; ui.selected={};
+  rebuildCategories(); normalizeWidgetOrder();
+}
 
 /* ----- switch active profile（交换展示数据） ----- */
 function switchProfile(id){
   var cur=state.settings.activeProfile;
   if(id===cur){ return; }
   // 1) 暂存当前 Profile 的数据到它自己的缓存
-  cacheProfileData(cur, {bookmarks:state.bookmarks, categories:state.categories});
+  cacheProfileData(cur, profileDataSnapshot());
   // 2) 切换并载入目标 Profile 的数据
   state.settings.activeProfile=id;
   var p=getProfile(id), cached=loadProfileData(id);
-  if(cached){ state.bookmarks=cached.bookmarks; state.categories=cached.categories; }
-  else { state.bookmarks=[]; state.categories=[]; }
-  ui.activeCat="All"; ui.selected={};
-  rebuildCategories();
+  if(cached){ applyProfileData(cached); }
+  else { state.bookmarks=[]; state.categories=[]; state.trash=[]; ui.activeCat="All"; ui.selected={}; rebuildCategories(); }
   saveSilently();           // 持久化但不写操作日志
   render();
   if(p && p.type==="webdav"){
@@ -71,7 +95,18 @@ function buildWebdavPayload(){
 function parseRemote(txt){
   txt=String(txt||"").trim(); if(!txt) return null;
   if(txt.charAt(0)==="{"||txt.charAt(0)==="["){
-    try{ var j=JSON.parse(txt); var arr=Array.isArray(j)?j:j.bookmarks; if(Array.isArray(arr)){ var bms=arr.map(function(b){ return { id:b.id||uid(), title:b.title||b.name||getDomain(b.url||"")||"", url:b.url||b.href||"", category:b.category||b.folder||"Uncategorized", description:b.description||"", tags:Array.isArray(b.tags)?b.tags:[] }; }).filter(function(b){ return b.url; }); return { bookmarks:bms, categories:Array.isArray(j.categories)?j.categories:deriveCats(bms) }; } }catch(e){}
+    try{
+      var j=JSON.parse(txt);
+      if(Array.isArray(j)) j={bookmarks:j};
+      if(typeof normalizeDashboardPayload==="function"){
+        return normalizeDashboardPayload(j,{preserveProfiles:true, preservePrivate:true});
+      }
+      var arr=j.bookmarks;
+      if(Array.isArray(arr)){
+        var bms=arr.map(function(b){ var out=Object.assign({}, b); out.id=out.id||uid(); out.title=out.title||out.name||getDomain(out.url||"")||""; out.url=normalizeUrl(out.url||out.href||""); out.category=out.category||out.folder||"Uncategorized"; out.description=out.description||""; out.tags=Array.isArray(out.tags)?out.tags:[]; return out; }).filter(function(b){ return b.url; });
+        return { bookmarks:bms, categories:Array.isArray(j.categories)?j.categories:deriveCats(bms), trash:Array.isArray(j.trash)?j.trash:[], theme:j.theme||state.theme, view:(j.view==="list2"?"list":j.view)||state.view, settings:j.settings||null };
+      }
+    }catch(e){}
     return null;
   }
   // 退回：把 Netscape HTML 书签文件里的链接抽出来
@@ -90,7 +125,7 @@ function syncProfile(id){
     .then(function(txt){
       var data=parseRemote(txt); if(!data) throw new Error(t("syncBadData"));
       cacheProfileData(id, data);
-      if(state.settings.activeProfile===id){ state.bookmarks=data.bookmarks; state.categories=data.categories; ui.activeCat="All"; rebuildCategories(); saveSilently(); render(); }
+      if(state.settings.activeProfile===id){ applyProfileData(data); saveSilently(); render(); }
       setSyncStatus("remote", Date.now());
       toast(t("syncOk",{n:data.bookmarks.length}),"ok");
     })
@@ -192,9 +227,9 @@ function deleteActiveProfile(){
   dropProfileData(delId);
   var nextId=getProfiles()[0].id; state.settings.activeProfile=nextId;
   var cached=loadProfileData(nextId);
-  state.bookmarks=cached?cached.bookmarks:[]; state.categories=cached?cached.categories:[];
-  ui.activeCat="All"; ui.selected={};
-  rebuildCategories(); saveSilently(); render();
+  if(cached) applyProfileData(cached);
+  else { state.bookmarks=[]; state.categories=[]; state.trash=[]; ui.activeCat="All"; ui.selected={}; rebuildCategories(); }
+  saveSilently(); render();
   var np=getProfile(nextId);
   if(np&&np.type==="webdav"){ setSyncStatus(cached?"cache":"syncing", cached?cached.at:0); if(np.autoSync!==false||!cached) syncProfile(nextId); }
   else setSyncStatus("local");
