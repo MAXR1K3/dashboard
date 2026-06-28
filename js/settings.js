@@ -24,6 +24,7 @@ function openSettings(){
   if(typeof renderOpLog==="function") renderOpLog();
   if(typeof applyPwaReaderSettingsVisibility==="function") applyPwaReaderSettingsVisibility();
   syncBgUI(); updateSyncUI(); openOverlay("settingsOverlay");
+  wireSettingsScrollGuard();
 }
 
 /* AI 建议引擎设置 */
@@ -86,3 +87,13 @@ function setActiveSetTab(tab){
   if(tab==="sync" && typeof syncProfileEditor==="function") syncProfileEditor();
 }
 $("#setTabs").addEventListener("click", function(e){ var b=e.target.closest("[data-settab]"); if(b) setActiveSetTab(b.getAttribute("data-settab")); });
+
+var _settingsScrollGuardReady=false;
+function wireSettingsScrollGuard(){
+  if(_settingsScrollGuardReady) return; _settingsScrollGuardReady=true;
+  var wrap=$(".set-tab-wrap");
+  if(wrap && typeof markPowerBusy==="function"){
+    wrap.addEventListener("scroll", markPowerBusy, {passive:true});
+    wrap.addEventListener("touchmove", markPowerBusy, {passive:true});
+  }
+}

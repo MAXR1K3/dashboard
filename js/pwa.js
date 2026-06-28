@@ -12,10 +12,12 @@ function applyPwaReaderSettingsVisibility(){
   $all("[data-pwa-reader-hidden]").forEach(function(el){ el.hidden=reader; });
 }
 (function(){
+  if(typeof applyPerformanceMode==="function") applyPerformanceMode();
   applyPwaReaderSettingsVisibility();
   if(!("serviceWorker" in navigator)) return;
   if(!/^https?:$/.test(location.protocol)) return;
   window.addEventListener("load", function(){
+    if(typeof applyPerformanceMode==="function") applyPerformanceMode();
     applyPwaReaderSettingsVisibility();
     navigator.serviceWorker.register("sw.js").catch(function(){});
   });

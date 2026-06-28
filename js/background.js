@@ -26,6 +26,39 @@ function wallpaperUrl(bg){
   if(source==="bing") return "https://bing.biturl.top/?resolution=1920&format=image&index="+(seed%8)+"&mkt=zh-CN";
   return "https://source.unsplash.com/2560x1440/?"+q+"&sig="+seed;
 }
+function wallpaperFileName(bg){
+  var cat = WALL_CATS.indexOf(bg.wallpaperCat)>-1 ? bg.wallpaperCat : "nature";
+  var source = WALL_SOURCES.indexOf(bg.wallpaperSource)>-1 ? bg.wallpaperSource : "unsplash";
+  return "navi-wallpaper-"+source+"-"+cat+"-"+Date.now()+".jpg";
+}
+function downloadUrl(url, name){
+  var a=document.createElement("a");
+  a.href=url; a.download=name||""; a.rel="noopener";
+  a.target="_blank";
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ a.remove(); },100);
+}
+function openWallpaperUrl(url){
+  var w=window.open(url,"_blank","noopener");
+  if(!w) location.href=url;
+}
+function downloadCurrentWallpaper(){
+  var bg=state.settings.background||{};
+  if(bg.type!=="wallpaper"){ toast(t("bgDownloadWallpaperUnavailable"),"err"); return; }
+  var url=wallpaperUrl(bg), name=wallpaperFileName(bg);
+  fetch(url,{mode:"cors",cache:"no-store"}).then(function(r){
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    return r.blob();
+  }).then(function(blob){
+    var objectUrl=URL.createObjectURL(blob);
+    downloadUrl(objectUrl,name);
+    setTimeout(function(){ URL.revokeObjectURL(objectUrl); },1000);
+    toast(t("bgDownloadWallpaperOk"),"ok");
+  }).catch(function(){
+    downloadUrl(url,name);
+    toast(t("bgDownloadWallpaperFallback"),"");
+  });
+}
 function startWallpaperTimer(){
   var bg=state.settings.background||{};
   var min=wallpaperRotateMin(bg);
@@ -89,6 +122,7 @@ function syncBgUI(){
   var wallRow=$("#bgWallRow"); if(wallRow) wallRow.style.display=bg.type==="wallpaper"?"":"none";
   var wallSourceRow=$("#bgWallSourceRow"); if(wallSourceRow) wallSourceRow.style.display=bg.type==="wallpaper"?"":"none";
   var wallRotateRow=$("#bgWallRotateRow"); if(wallRotateRow) wallRotateRow.style.display=bg.type==="wallpaper"?"":"none";
+  var wallDownloadRow=$("#bgWallDownloadRow"); if(wallDownloadRow) wallDownloadRow.style.display=bg.type==="wallpaper"?"":"none";
   $all('#bgWallRow [data-wallcat]').forEach(function(b){ b.classList.toggle("on", bg.type==="wallpaper"&&b.getAttribute("data-wallcat")===(bg.wallpaperCat||"nature")); });
   $all('#wallSourceSeg [data-wallsource]').forEach(function(b){ b.classList.toggle("on", (bg.wallpaperSource||"unsplash")===b.getAttribute("data-wallsource")); });
   $all('#wallRotateSeg [data-wallrotate]').forEach(function(b){ b.classList.toggle("on", String(wallpaperRotateMin(bg))===b.getAttribute("data-wallrotate")); });
@@ -152,6 +186,7 @@ $("#wallRotateSeg").addEventListener("click", function(e){
   setBackground({ type:"wallpaper", live:cur.live||"aurora", image:cur.image||null, wallpaperCat:cur.wallpaperCat||"nature", wallpaperSource:cur.wallpaperSource||"unsplash", wallpaperRotate:rot });
 });
 
+$("#bgDownloadWall").addEventListener("click", downloadCurrentWallpaper);
 $("#bgUpload").addEventListener("click", function(){ $("#bgInput").click(); });
 
 $("#bgRemove").addEventListener("click", function(){

@@ -365,6 +365,51 @@
       contain-intrinsic-block-size:auto;
     }
   }
+  body.android-chrome #settingsOverlay{
+    overflow:hidden !important;
+    padding:12px !important;
+  }
+  body.android-chrome #settingsOverlay .modal{
+    transform:none !important;
+    transition:none !important;
+    max-height:calc(100dvh - 24px);
+    box-shadow:0 4px 18px rgba(16,24,40,.12);
+    contain:layout paint;
+  }
+  [data-theme="dark"] body.android-chrome #settingsOverlay .modal{
+    box-shadow:0 6px 22px rgba(0,0,0,.38);
+  }
+  body.android-chrome #settingsOverlay .modal:after{
+    display:none !important;
+  }
+  body.android-chrome #settingsOverlay .modal-body,
+  body.android-chrome #settingsOverlay .set-tabs,
+  body.android-chrome #settingsOverlay .set-tab-wrap{
+    transform:translateZ(0);
+    backface-visibility:hidden;
+  }
+  body.android-chrome #settingsOverlay .set-tab-wrap{
+    -webkit-overflow-scrolling:auto;
+    contain:layout paint style;
+    will-change:scroll-position;
+    padding-bottom:8px;
+  }
+  body.android-chrome #settingsOverlay .set-tab.on,
+  body.android-chrome #settingsOverlay .set-row,
+  body.android-chrome #settingsOverlay .seg button,
+  body.android-chrome #settingsOverlay .switch .track,
+  body.android-chrome #settingsOverlay .switch .track:before,
+  body.android-chrome #settingsOverlay .field input,
+  body.android-chrome #settingsOverlay .field select,
+  body.android-chrome #settingsOverlay .field textarea{
+    animation:none !important;
+    transition:none !important;
+  }
+  body.android-chrome #settingsOverlay .seg button.on,
+  body.android-chrome #settingsOverlay .btn,
+  body.android-chrome #settingsOverlay .logo-preview{
+    box-shadow:none !important;
+  }
 
   /* Header — blur lives on a ::before pseudo, NOT on <header> itself, so that
      header is not a containing block for position:fixed children (the mobile
