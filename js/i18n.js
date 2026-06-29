@@ -28,7 +28,7 @@ var I18N = {
     saveBookmark:"Save bookmark", saveChanges:"Save changes", cancel:"Cancel", save:"Save", delete:"Delete", done:"Done",
     renameCat:"Rename “{cat}”", deleteBookmark:"Delete bookmark", deleteBmMsg:"Remove “{name}” from your dashboard?",
     bookmarkOptions:"Bookmark options", pinBookmark:"Keep this bookmark position", pinBookmarkDesc:"Ignore browser sync order for this bookmark.", unpinBookmark:"Follow browser sync order",
-    categorySettings:"Category settings", categorySettingsSaved:"Category settings saved", pinCategory:"Keep this category position", pinCategoryDesc:"Ignore browser sync order for this category.", unpinCategory:"Follow browser sync order",
+    categorySettings:"Category settings", categorySettingsSaved:"Category settings saved", pinCategory:"Keep this category position", pinCategoryDesc:"Ignore browser sync order for this category.", unpinCategory:"Follow browser sync order", categoryColor:"Category name color", categoryColorDesc:"Optional. Only changes the displayed name color.", categoryColorReset:"Default",
     healthMenu:"Link status", healthSetOk:"Mark as valid", healthSetWarn:"Mark as uncertain", healthSetBad:"Mark as invalid", healthSetUnknown:"Clear manual status", healthManual:"Manual", healthManualDesc:"Manually override the detected link status.", linkStatusAuto:"Auto / not checked",
     statusUpdated:"Link status updated",
     deleteCategory:"Delete category", delCatMove:"Move {n} bookmark(s) to “Uncategorized” and remove this category?", delCatEmpty:"Remove this empty category?",
@@ -94,7 +94,7 @@ var I18N = {
     saveBookmark:"保存书签", saveChanges:"保存更改", cancel:"取消", save:"保存", delete:"删除", done:"完成",
     renameCat:"重命名“{cat}”", deleteBookmark:"删除书签", deleteBmMsg:"从面板中移除“{name}”？",
     bookmarkOptions:"书签选项", pinBookmark:"固定此书签位置", pinBookmarkDesc:"此书签不再跟随浏览器同步顺序移动。", unpinBookmark:"跟随浏览器同步顺序",
-    categorySettings:"分类设置", categorySettingsSaved:"分类设置已保存", pinCategory:"固定此分类位置", pinCategoryDesc:"此分类不再跟随浏览器同步顺序移动。", unpinCategory:"跟随浏览器同步顺序",
+    categorySettings:"分类设置", categorySettingsSaved:"分类设置已保存", pinCategory:"固定此分类位置", pinCategoryDesc:"此分类不再跟随浏览器同步顺序移动。", unpinCategory:"跟随浏览器同步顺序", categoryColor:"分类名称颜色", categoryColorDesc:"可选，仅改变分类名称的显示颜色。", categoryColorReset:"默认",
     healthMenu:"链接状态", healthSetOk:"标记为有效", healthSetWarn:"标记为存疑", healthSetBad:"标记为无效", healthSetUnknown:"清除手动状态", healthManual:"手动", healthManualDesc:"手动覆盖自动检测到的链接状态。", linkStatusAuto:"自动 / 未检查",
     statusUpdated:"链接状态已更新",
     deleteCategory:"删除分类", delCatMove:"将 {n} 个书签移到“未分类”并删除此分类？", delCatEmpty:"删除这个空分类？",
@@ -160,7 +160,7 @@ var I18N = {
     saveBookmark:"Guardar marcador", saveChanges:"Guardar cambios", cancel:"Cancelar", save:"Guardar", delete:"Eliminar", done:"Listo",
     renameCat:"Renombrar «{cat}»", deleteBookmark:"Eliminar marcador", deleteBmMsg:"¿Quitar «{name}» de tu panel?",
     bookmarkOptions:"Opciones del marcador", pinBookmark:"Mantener posición del marcador", pinBookmarkDesc:"Ignora el orden sincronizado del navegador para este marcador.", unpinBookmark:"Seguir orden del navegador",
-    categorySettings:"Ajustes de categoría", categorySettingsSaved:"Ajustes de categoría guardados", pinCategory:"Mantener posición de categoría", pinCategoryDesc:"Ignora el orden sincronizado del navegador para esta categoría.", unpinCategory:"Seguir orden del navegador",
+    categorySettings:"Ajustes de categoría", categorySettingsSaved:"Ajustes de categoría guardados", pinCategory:"Mantener posición de categoría", pinCategoryDesc:"Ignora el orden sincronizado del navegador para esta categoría.", unpinCategory:"Seguir orden del navegador", categoryColor:"Color del nombre", categoryColorDesc:"Opcional. Solo cambia el color del nombre mostrado.", categoryColorReset:"Predeterminado",
     healthMenu:"Estado del enlace", healthSetOk:"Marcar como válido", healthSetWarn:"Marcar como dudoso", healthSetBad:"Marcar como inválido", healthSetUnknown:"Borrar estado manual", healthManual:"Manual", healthManualDesc:"Sobrescribe manualmente el estado detectado del enlace.", linkStatusAuto:"Auto / sin comprobar",
     statusUpdated:"Estado del enlace actualizado",
     deleteCategory:"Eliminar categoría", delCatMove:"¿Mover {n} marcador(es) a «Sin categoría» y eliminar esta categoría?", delCatEmpty:"¿Eliminar esta categoría vacía?",
@@ -250,6 +250,8 @@ function timeAgo(ts){
       healthCheck:"Check links", healthRunning:"Checking links… this may take a moment", healthBusy:"A link check is already running",
       healthDone:"Link check done: {ok} OK · {warn} unsure · {bad} broken",
       hOk:"Link OK · checked {ago}", hBad:"Link appears dead · checked {ago}", hWarn:"Link may be unavailable · checked {ago}", hUnknown:"Not checked yet",
+      healthIssues:"Invalid links", healthIssuesSub:"Review links marked invalid or uncertain after checking.",
+      healthIssueAll:"All", healthIssueBad:"Invalid", healthIssueWarn:"Uncertain", healthIssueEmpty:"No invalid or uncertain links.", healthIssueFilteredEmpty:"No links in this status.", healthIssueOpen:"Open", healthIssueEdit:"Edit",
       aiSuggest:"AI category suggestions",
       suggSub:"Based on title, URL, domain and description. Nothing changes until you apply.",
       suggesting:"Analyzing bookmarks…", suggNone:"No suggestions — your bookmarks already look tidy.",
@@ -318,6 +320,8 @@ function timeAgo(ts){
       healthCheck:"检查链接有效性", healthRunning:"正在检查链接…可能需要一点时间", healthBusy:"已有检查正在进行",
       healthDone:"检查完成：{ok} 正常 · {warn} 存疑 · {bad} 失效",
       hOk:"链接正常 · {ago}检查", hBad:"链接疑似失效 · {ago}检查", hWarn:"链接可能异常 · {ago}检查", hUnknown:"尚未检查",
+      healthIssues:"异常链接", healthIssuesSub:"集中维护检查后标记为失效或存疑的链接。",
+      healthIssueAll:"全部", healthIssueBad:"失效", healthIssueWarn:"存疑", healthIssueEmpty:"没有失效或存疑链接。", healthIssueFilteredEmpty:"当前状态下没有链接。", healthIssueOpen:"打开", healthIssueEdit:"编辑",
       aiSuggest:"AI 分类建议",
       suggSub:"根据标题、URL、域名和描述生成；应用前不会修改任何书签。",
       suggesting:"正在分析书签…", suggNone:"没有可用建议 —— 书签看起来已经很整齐。",
@@ -386,6 +390,8 @@ function timeAgo(ts){
       healthCheck:"Comprobar enlaces", healthRunning:"Comprobando enlaces…", healthBusy:"Ya hay una comprobación en curso",
       healthDone:"Comprobación: {ok} OK · {warn} dudosos · {bad} rotos",
       hOk:"Enlace OK · {ago}", hBad:"Enlace roto · {ago}", hWarn:"Enlace dudoso · {ago}", hUnknown:"Sin comprobar",
+      healthIssues:"Enlaces no válidos", healthIssuesSub:"Revisa enlaces marcados como rotos o dudosos tras comprobar.",
+      healthIssueAll:"Todos", healthIssueBad:"Inválidos", healthIssueWarn:"Dudosos", healthIssueEmpty:"No hay enlaces inválidos o dudosos.", healthIssueFilteredEmpty:"No hay enlaces con este estado.", healthIssueOpen:"Abrir", healthIssueEdit:"Editar",
       aiSuggest:"Sugerencias de categorías (IA)",
       suggSub:"Basadas en título, URL, dominio y descripción. Nada cambia hasta que apliques.",
       suggesting:"Analizando marcadores…", suggNone:"Sin sugerencias: tus marcadores ya están ordenados.",
@@ -443,6 +449,152 @@ function timeAgo(ts){
       logImport:"{n} marcadores importados", logBmAdd:"Marcador añadido «{name}»", logBmDelete1:"Marcador eliminado «{name}»", logBmDeleteN:"{n} marcadores eliminados", logBmEdit1:"Marcador editado «{name}»", logBmEditN:"{n} marcadores editados", logBmReorder:"Marcadores reordenados",
       logSetMotion:"Animación → {v}", logSetLang:"Idioma → {v}", logSetMonitor:"Monitor de red actualizado", logSetAi:"Sugerencias de IA actualizadas", logSetBg:"Fondo cambiado", logSetName:"Nombre cambiado", logSetTag:"Subtítulo cambiado", logSetCatLayout:"Estilo de categorías cambiado", logSetClock:"Segundos del reloj", logSetHolidays:"Festivos", logSetGlass:"Efecto de cristal cambiado", logSetWidgets:"Visibilidad de widgets", logSetWidgetOrder:"Widgets reordenados", logSetWidgetSize:"Tamaño de widget", logSetRetention:"Retención cambiada", logSetSync:"Sincronización de navegador actualizada", logSetLogo:"Logo cambiado", logSetGeneric:"Ajuste cambiado: {k}", logSetMultiple:"{n} ajustes cambiados",
       logUndo:"Deshecho: {msg}"
+    }
+  };
+  Object.keys(extra).forEach(function(k){ if(I18N[k]) Object.assign(I18N[k], extra[k]); });
+})();
+
+/* ===== 日历增强文案 ===== */
+(function(){
+  var extra={
+    en:{
+      calToday:"Today", calYesterday:"Yesterday", calTomorrow:"Tomorrow", calDaysAgo:"{n} days ago", calDaysLater:"In {n} days",
+      calWeekday:"Weekday", calWeekend:"Weekend", calWeekNo:"Week {n}", calNoReminder:"No reminders for this day.",
+      calAddReminder:"Add", calReminderPh:"Add a reminder…", calReminderAdded:"Reminder added", calReminderDone:"Reminder completed", calReminderRestored:"Reminder reopened", calReminderDeleted:"Reminder deleted",
+      calToggleDone:"Toggle done", calUpcoming:"Upcoming", calJumpMonth:"Jump to month", calJumpYear:"Jump to year", calShowDoneBadges:"Show badge after reminders are completed",
+      worldClock:"World clocks", worldClockEmpty:"Add a city or time zone to compare time.", worldClockPh:"Search city or time zone…", addClock:"Add", removeClock:"Remove clock", clockStack:"Stack", clockCompact:"Compact",
+      worldClockAdded:"World clock added", worldClockExists:"That clock already exists", worldClockNotFound:"No matching time zone found",
+      clearRecent:"Clear recent", clearFrequent:"Clear usage", recentCleared:"Recently opened cleared", frequentCleared:"Usage counts cleared",
+      favoriteBookmark:"Favorite shortcut", favoriteBookmarkDesc:"Show this bookmark first in the frequently used widget.", addFavorite:"Add favorite", removeFavorite:"Remove favorite", favoriteAdded:"Added to favorites", favoriteRemoved:"Removed from favorites"
+    },
+    zh:{
+      calToday:"今天", calYesterday:"昨天", calTomorrow:"明天", calDaysAgo:"{n} 天前", calDaysLater:"{n} 天后",
+      calWeekday:"工作日", calWeekend:"周末", calWeekNo:"第 {n} 周", calNoReminder:"这一天还没有提醒事项。",
+      calAddReminder:"添加", calReminderPh:"添加提醒事项…", calReminderAdded:"已添加提醒", calReminderDone:"已完成提醒", calReminderRestored:"已恢复提醒", calReminderDeleted:"已删除提醒",
+      calToggleDone:"切换完成状态", calUpcoming:"即将到来", calJumpMonth:"跳转月份", calJumpYear:"跳转年份", calShowDoneBadges:"提醒完成后仍显示日期角标",
+      worldClock:"世界时钟", worldClockEmpty:"添加城市或时区，快速对照时间。", worldClockPh:"搜索城市或时区…", addClock:"添加", removeClock:"移除时钟", clockStack:"堆栈", clockCompact:"紧凑",
+      worldClockAdded:"已添加世界时钟", worldClockExists:"该时钟已存在", worldClockNotFound:"没有匹配的时区",
+      clearRecent:"清空最近", clearFrequent:"清空统计", recentCleared:"已清空最近打开", frequentCleared:"已清空常用统计",
+      favoriteBookmark:"常用收藏", favoriteBookmarkDesc:"在常用小组件中优先显示这个书签。", addFavorite:"设为常用", removeFavorite:"取消常用", favoriteAdded:"已加入常用收藏", favoriteRemoved:"已取消常用收藏"
+    },
+    es:{
+      calToday:"Hoy", calYesterday:"Ayer", calTomorrow:"Mañana", calDaysAgo:"Hace {n} días", calDaysLater:"En {n} días",
+      calWeekday:"Laborable", calWeekend:"Fin de semana", calWeekNo:"Semana {n}", calNoReminder:"No hay recordatorios para este día.",
+      calAddReminder:"Añadir", calReminderPh:"Añadir recordatorio…", calReminderAdded:"Recordatorio añadido", calReminderDone:"Recordatorio completado", calReminderRestored:"Recordatorio reabierto", calReminderDeleted:"Recordatorio eliminado",
+      calToggleDone:"Cambiar estado", calUpcoming:"Próximos", calJumpMonth:"Ir al mes", calJumpYear:"Ir al año", calShowDoneBadges:"Mostrar insignia tras completar recordatorios",
+      worldClock:"Relojes mundiales", worldClockEmpty:"Añade una ciudad o zona horaria.", worldClockPh:"Buscar ciudad o zona horaria…", addClock:"Añadir", removeClock:"Quitar reloj", clockStack:"Pila", clockCompact:"Compacto",
+      worldClockAdded:"Reloj añadido", worldClockExists:"Ese reloj ya existe", worldClockNotFound:"No se encontró zona horaria",
+      clearRecent:"Borrar recientes", clearFrequent:"Borrar uso", recentCleared:"Recientes borrados", frequentCleared:"Uso borrado",
+      favoriteBookmark:"Acceso favorito", favoriteBookmarkDesc:"Mostrar este marcador primero en el widget de frecuentes.", addFavorite:"Añadir favorito", removeFavorite:"Quitar favorito", favoriteAdded:"Añadido a favoritos", favoriteRemoved:"Quitado de favoritos"
+    }
+  };
+  Object.keys(extra).forEach(function(k){ if(I18N[k]) Object.assign(I18N[k], extra[k]); });
+})();
+
+/* ===== 命令面板 (⌘/Ctrl-K) 文案 ===== */
+(function(){
+  var extra={
+    en:{
+      palTitle:"Command palette",
+      palPlaceholder:"Search bookmarks, run a command, or enter a URL…",
+      palCmds:"Commands", palBookmarks:"Bookmarks", palCategories:"Categories", palWeb:"Web",
+      palSearchWeb:"Search the web for “{q}”", palOpenUrl:"Open {url}",
+      palEmpty:"No matches", palNav:"navigate", palOpen:"open", palClose:"close"
+    },
+    zh:{
+      palTitle:"命令面板",
+      palPlaceholder:"搜索书签、执行命令，或输入网址…",
+      palCmds:"命令", palBookmarks:"书签", palCategories:"分类", palWeb:"网页",
+      palSearchWeb:"在网页搜索“{q}”", palOpenUrl:"打开 {url}",
+      palEmpty:"没有匹配项", palNav:"切换", palOpen:"打开", palClose:"关闭"
+    },
+    es:{
+      palTitle:"Paleta de comandos",
+      palPlaceholder:"Busca marcadores, ejecuta un comando o escribe una URL…",
+      palCmds:"Comandos", palBookmarks:"Marcadores", palCategories:"Categorías", palWeb:"Web",
+      palSearchWeb:"Buscar en la web «{q}»", palOpenUrl:"Abrir {url}",
+      palEmpty:"Sin coincidencias", palNav:"mover", palOpen:"abrir", palClose:"cerrar"
+    }
+  };
+  Object.keys(extra).forEach(function(k){ if(I18N[k]) Object.assign(I18N[k], extra[k]); });
+})();
+
+/* ===== 标签与置顶 文案 ===== */
+(function(){
+  var extra={
+    en:{
+      tagsLabel:"Tags", tagsPh:"Separate with commas",
+      filterByTag:"Filter by #{tag}", tagFilterClear:"Clear tag filter",
+      pinToTop:"Pin to top", unpin:"Unpin", pinnedLabel:"Pinned",
+      pinBookmark:"Pin to top", pinBookmarkDesc:"Keep this bookmark at the top and lock its position during browser sync."
+    },
+    zh:{
+      tagsLabel:"标签", tagsPh:"用逗号分隔",
+      filterByTag:"按 #{tag} 筛选", tagFilterClear:"清除标签筛选",
+      pinToTop:"置顶", unpin:"取消置顶", pinnedLabel:"已置顶",
+      pinBookmark:"置顶", pinBookmarkDesc:"让该书签固定在顶部，并在浏览器同步时保持位置。"
+    },
+    es:{
+      tagsLabel:"Etiquetas", tagsPh:"Separa con comas",
+      filterByTag:"Filtrar por #{tag}", tagFilterClear:"Quitar filtro de etiqueta",
+      pinToTop:"Fijar arriba", unpin:"Quitar fijado", pinnedLabel:"Fijado",
+      pinBookmark:"Fijar arriba", pinBookmarkDesc:"Mantén este marcador arriba y conserva su posición al sincronizar."
+    }
+  };
+  Object.keys(extra).forEach(function(k){ if(I18N[k]) Object.assign(I18N[k], extra[k]); });
+})();
+
+/* ===== 隐私模式 / 存储用量 / 分块渲染 文案 ===== */
+(function(){
+  var extra={
+    en:{
+      privacySec:"Privacy", privacyMode:"Privacy mode",
+      privacyModeDesc:"Stop automatic external requests: no site icons from Google, no page fetching for auto-descriptions. Weather, IP and online wallpapers stay under their own settings.",
+      privacyOn:"Privacy mode on — no automatic external requests", privacyOff:"Privacy mode off",
+      storageUsage:"Local storage used", storageUsageDesc:"About {kb} KB used ({pct}% of the ~5 MB browser limit). Export a backup if it gets high.",
+      storageFull:"Local storage is full — export a backup and clear old items to free space.",
+      showMore:"Show more ({n})"
+    },
+    zh:{
+      privacySec:"隐私", privacyMode:"隐私模式",
+      privacyModeDesc:"关闭自动外部请求：不再向 Google 请求站点图标、不再抓取网页生成摘要。天气、IP、在线壁纸仍由各自的设置控制。",
+      privacyOn:"隐私模式已开启 —— 不再发起自动外部请求", privacyOff:"隐私模式已关闭",
+      storageUsage:"本地存储占用", storageUsageDesc:"已用约 {kb} KB（约为浏览器 5 MB 上限的 {pct}%）。占用过高时请导出备份。",
+      storageFull:"本地存储已满 —— 请导出备份并清理旧数据以释放空间。",
+      showMore:"显示更多（{n}）"
+    },
+    es:{
+      privacySec:"Privacidad", privacyMode:"Modo privado",
+      privacyModeDesc:"Detiene las solicitudes externas automáticas: sin iconos de sitio de Google ni descarga de páginas para descripciones. El clima, la IP y los fondos en línea siguen sus propios ajustes.",
+      privacyOn:"Modo privado activado: sin solicitudes externas automáticas", privacyOff:"Modo privado desactivado",
+      storageUsage:"Almacenamiento local usado", storageUsageDesc:"Unos {kb} KB usados ({pct}% del límite de ~5 MB del navegador). Exporta una copia si sube mucho.",
+      storageFull:"El almacenamiento local está lleno: exporta una copia y borra elementos antiguos.",
+      showMore:"Mostrar más ({n})"
+    }
+  };
+  Object.keys(extra).forEach(function(k){ if(I18N[k]) Object.assign(I18N[k], extra[k]); });
+})();
+
+/* ===== 统一上下文菜单 / 动作面板 文案 ===== */
+(function(){
+  var extra={
+    en:{
+      ctxActions:"Actions", ctxCancel:"Cancel", back:"Back",
+      ctxOpen:"Open", ctxMoveTo:"Move to category", ctxCopyLink:"Copy link",
+      ctxLinkCopied:"Link copied", ctxMoved:"Moved to “{cat}”", ctxOpenCat:"Open category",
+      palTip:"Command palette"
+    },
+    zh:{
+      ctxActions:"操作", ctxCancel:"取消", back:"返回",
+      ctxOpen:"打开", ctxMoveTo:"移动到分类", ctxCopyLink:"复制链接",
+      ctxLinkCopied:"链接已复制", ctxMoved:"已移动到“{cat}”", ctxOpenCat:"打开分类",
+      palTip:"命令面板"
+    },
+    es:{
+      ctxActions:"Acciones", ctxCancel:"Cancelar", back:"Atrás",
+      ctxOpen:"Abrir", ctxMoveTo:"Mover a categoría", ctxCopyLink:"Copiar enlace",
+      ctxLinkCopied:"Enlace copiado", ctxMoved:"Movido a «{cat}»", ctxOpenCat:"Abrir categoría",
+      palTip:"Paleta de comandos"
     }
   };
   Object.keys(extra).forEach(function(k){ if(I18N[k]) Object.assign(I18N[k], extra[k]); });

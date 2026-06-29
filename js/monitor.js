@@ -338,8 +338,7 @@ widgetsEl.addEventListener("click", function(e){
   var act=e.target.closest("[data-monact]"); if(!act) return;
   var a=act.getAttribute("data-monact");
   if(a==="settings"){
-    if(typeof openSettings==="function") openSettings();
-    if(typeof setActiveSetTab==="function") setActiveSetTab("services");
+    if(typeof openSettings==="function") openSettings("services");
   }
   else if(a==="retry"){ monState.metricsErr=null; refreshMonitorData(); }
 });

@@ -4,11 +4,12 @@
 /* ===== bookmark add/edit ===== */
 function fillCatSelect(sel){ var s=$("#bmCat"); s.innerHTML=state.categories.map(function(c){ return '<option value="'+escapeHtml(c)+'"'+(c===sel?" selected":"")+'>'+escapeHtml(catLabel(c))+'</option>'; }).join(""); if(state.categories.indexOf("Uncategorized")===-1){ s.innerHTML+='<option value="Uncategorized"'+(sel==="Uncategorized"?" selected":"")+'>'+escapeHtml(t("uncategorized"))+'</option>'; } }
 function syncBookmarkOptionFields(b){
-  var opt=$("#bmOptionsField"), healthRow=$("#bmHealthRow"), sel=$("#bmHealth"), pin=$("#bmPinned");
+  var opt=$("#bmOptionsField"), healthRow=$("#bmHealthRow"), sel=$("#bmHealth"), pin=$("#bmPinned"), fav=$("#bmFavorite");
   if(!opt) return;
   var editing=!!b;
   opt.style.display=editing?"":"none";
   if(pin) pin.checked=!!(b&&b.pinned);
+  if(fav) fav.checked=!!(b&&b.favorite);
   if(healthRow) healthRow.style.display=editing?"":"none";
   if(sel){
     sel.innerHTML=[
@@ -21,17 +22,26 @@ function syncBookmarkOptionFields(b){
     sel.value=(st==="ok"||st==="warn"||st==="bad")?st:"auto";
   }
 }
-function openAdd(){ ui.editingId=null; $("#bmTitle").textContent=t("addBookmark"); $("#bmSave").textContent=t("saveBookmark"); $("#bmUrl").value=""; $("#bmName").value=""; $("#bmDesc").value=""; syncBookmarkOptionFields(null); fillCatSelect((ui.activeCat!=="All")?ui.activeCat:(state.categories[0]||"Uncategorized")); openOverlay("bmOverlay"); setTimeout(function(){ $("#bmUrl").focus(); },50); }
-function openEdit(id){ var b=byId(id); if(!b) return; ui.editingId=id; $("#bmTitle").textContent=t("editBookmark"); $("#bmSave").textContent=t("saveChanges"); $("#bmUrl").value=b.url; $("#bmName").value=b.title; $("#bmDesc").value=b.description||""; syncBookmarkOptionFields(b); fillCatSelect(b.category); openOverlay("bmOverlay"); setTimeout(function(){ $("#bmName").focus(); },50); }
+// 解析标签输入：按逗号/空白分隔，去 # 前缀，去重（不区分大小写），限制数量与长度
+function parseTags(str){
+  var seen={}, out=[];
+  String(str||"").split(/[,，\s]+/).forEach(function(raw){
+    var tg=raw.replace(/^#+/,"").replace(/\s+/g," ").trim().slice(0,24);
+    if(!tg) return; var k=tg.toLowerCase(); if(seen[k]) return; seen[k]=1; if(out.length<8) out.push(tg);
+  });
+  return out;
+}
+function openAdd(){ ui.editingId=null; $("#bmTitle").textContent=t("addBookmark"); $("#bmSave").textContent=t("saveBookmark"); $("#bmUrl").value=""; $("#bmName").value=""; $("#bmDesc").value=""; $("#bmTags").value=""; syncBookmarkOptionFields(null); fillCatSelect((ui.activeCat!=="All")?ui.activeCat:(state.categories[0]||"Uncategorized")); openOverlay("bmOverlay"); setTimeout(function(){ $("#bmUrl").focus(); },50); }
+function openEdit(id){ var b=byId(id); if(!b) return; ui.editingId=id; $("#bmTitle").textContent=t("editBookmark"); $("#bmSave").textContent=t("saveChanges"); $("#bmUrl").value=b.url; $("#bmName").value=b.title; $("#bmDesc").value=b.description||""; $("#bmTags").value=(b.tags||[]).join(", "); syncBookmarkOptionFields(b); fillCatSelect(b.category); openOverlay("bmOverlay"); setTimeout(function(){ $("#bmName").focus(); },50); }
 function saveBookmark(){
   var url=normalizeUrl($("#bmUrl").value); if(!url){ toast(t("pleaseUrl"),"err"); $("#bmUrl").focus(); return; }
   if(!isWebUrl(url)){ toast(t("invalidUrl"),"err"); $("#bmUrl").focus(); return; }
-  var name=$("#bmName").value.trim()||getDomain(url)||url, cat=cleanCatName($("#bmCat").value)||"Uncategorized", desc=$("#bmDesc").value.trim();
+  var name=$("#bmName").value.trim()||getDomain(url)||url, cat=cleanCatName($("#bmCat").value)||"Uncategorized", desc=$("#bmDesc").value.trim(), tags=parseTags($("#bmTags")?$("#bmTags").value:"");
   if(!desc) desc=smartSummary(url,name,cat,"");
   if(isReservedCat(cat)) cat="Uncategorized";
   if(state.categories.indexOf(cat)===-1) state.categories.push(cat);
-  if(ui.editingId){ var b=byId(ui.editingId); if(b){ b.url=url; b.title=name; b.category=cat; b.description=desc; b.pinned=!!($("#bmPinned")&&$("#bmPinned").checked); var h=$("#bmHealth")?$("#bmHealth").value:"auto"; if(h==="ok"||h==="warn"||h==="bad") b.health={status:h,ts:Date.now(),manual:true}; else if(b.health&&b.health.manual) delete b.health; delete b._seed; } toast(t("bookmarkUpdated"),"ok"); }
-  else { state.bookmarks.unshift({ id:uid(), title:name, url:url, category:cat, description:desc, clicks:0, lastOpened:0 }); toast(t("bookmarkAdded"),"ok"); }
+  if(ui.editingId){ var b=byId(ui.editingId); if(b){ b.url=url; b.title=name; b.category=cat; b.description=desc; b.tags=tags; b.pinned=!!($("#bmPinned")&&$("#bmPinned").checked); b.favorite=!!($("#bmFavorite")&&$("#bmFavorite").checked); var h=$("#bmHealth")?$("#bmHealth").value:"auto"; if(h==="ok"||h==="warn"||h==="bad") b.health={status:h,ts:Date.now(),manual:true}; else if(b.health&&b.health.manual) delete b.health; delete b._seed; } toast(t("bookmarkUpdated"),"ok"); }
+  else { state.bookmarks.unshift({ id:uid(), title:name, url:url, category:cat, description:desc, tags:tags, clicks:0, lastOpened:0, favorite:false }); toast(t("bookmarkAdded"),"ok"); }
   save(); closeOverlay("bmOverlay"); render();
 }
 $("#bmSave").addEventListener("click", saveBookmark);
@@ -298,6 +308,11 @@ function summarizeDoc(url,doc,title,cat){
 }
 function describeUrlForSummary(url, titleGetter, catGetter, done){
   var u=normalizeUrl(url);
+  // 隐私模式：不抓取目标网页、不走第三方代理、不调用 AI —— 只用本地规则生成摘要
+  if(state.settings&&state.settings.privacy){
+    var pt=(titleGetter?titleGetter():"")||"", pc=(catGetter?catGetter():"")||"";
+    done(smartSummary(u,pt,pc,""), true, pt); return;
+  }
   var finished=false, pending=0, ctrls=[], backupHtml=null, backupTitle="";
   var bmName=titleGetter||function(){return $("#bmName")?$("#bmName").value:"";};
   var bmCat=catGetter||function(){return $("#bmCat")?$("#bmCat").value:"";};

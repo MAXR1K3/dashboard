@@ -100,7 +100,57 @@ function clockBody(){
     '<div class="clock-digits" id="wTime"></div>'+
     '<div class="clock-date" id="wDate"></div>'+
     '<div class="clock-greet" id="wGreet"></div>'+
+  '</div>'+worldClockBody(new Date());
+}
+function worldClockZones(){
+  var fallback=["UTC","America/New_York","America/Los_Angeles","Europe/London","Europe/Paris","Europe/Madrid","Asia/Shanghai","Asia/Hong_Kong","Asia/Tokyo","Asia/Seoul","Asia/Singapore","Australia/Sydney"];
+  try{ if(Intl.supportedValuesOf) return Intl.supportedValuesOf("timeZone"); }catch(e){}
+  return fallback;
+}
+function tzLabel(tz){ return String(tz||"").replace(/_/g," ").replace(/\//g," / "); }
+function tzCity(tz){ var p=String(tz||"").split("/"); return (p[p.length-1]||tz).replace(/_/g," "); }
+function tzTime(tz, date){
+  try{
+    return new Intl.DateTimeFormat(LOCALE[state.settings.lang],{hour:"2-digit",minute:"2-digit",hour12:!state.settings.clock24h,timeZone:tz}).format(date||new Date());
+  }catch(e){ return "—"; }
+}
+function tzOffsetLabel(tz, date){
+  try{
+    var s=new Intl.DateTimeFormat("en-US",{timeZone:tz,timeZoneName:"shortOffset",hour:"2-digit",minute:"2-digit"}).format(date||new Date());
+    var m=s.match(/GMT[+-]\d{1,2}(?::\d{2})?|GMT/);
+    return m?m[0]:"";
+  }catch(e){ return ""; }
+}
+function worldClockList(){
+  if(!Array.isArray(state.settings.worldClocks)) state.settings.worldClocks=[];
+  return state.settings.worldClocks;
+}
+function findTimeZone(q){
+  q=String(q||"").trim().toLowerCase(); if(!q) return "";
+  if(q==="utc"||q==="gmt") return "UTC";
+  var zones=worldClockZones(), compact=q.replace(/[\s_-]+/g,"");
+  for(var i=0;i<zones.length;i++){ if(zones[i].toLowerCase()===q) return zones[i]; }
+  for(var j=0;j<zones.length;j++){
+    var z=zones[j].toLowerCase(), c=z.replace(/[\s_/-]+/g,"");
+    if(z.indexOf(q)>-1||c.indexOf(compact)>-1) return zones[j];
+  }
+  return "";
+}
+function worldClockBody(now){
+  var clocks=worldClockList(), mode=state.settings.worldClockMode==="compact"?"compact":"stack";
+  var rows=clocks.length?clocks.map(function(c){
+    var tz=typeof c==="string"?c:c.tz, id=escapeHtml(tz), label=escapeHtml(tzCity(tz));
+    if(mode==="compact") return '<div class="wc-chip" data-tz="'+id+'"><b>'+escapeHtml(tzTime(tz,now))+'</b><span>'+label+'</span><button type="button" data-clock-remove="'+id+'" title="'+escapeHtml(t("removeClock"))+'">×</button></div>';
+    return '<div class="wc-row" data-tz="'+id+'"><div><b>'+label+'</b><small>'+escapeHtml(tzLabel(tz))+'</small></div><span>'+escapeHtml(tzTime(tz,now))+'</span><em>'+escapeHtml(tzOffsetLabel(tz,now))+'</em><button type="button" data-clock-remove="'+id+'" title="'+escapeHtml(t("removeClock"))+'">×</button></div>';
+  }).join(""):'<div class="wc-empty">'+escapeHtml(t("worldClockEmpty"))+'</div>';
+  return '<div class="world-clock">'+
+    '<div class="wc-head"><b>'+escapeHtml(t("worldClock"))+'</b><div class="wc-mode"><button type="button" data-clock-mode="stack" class="'+(mode==="stack"?"on":"")+'">'+escapeHtml(t("clockStack"))+'</button><button type="button" data-clock-mode="compact" class="'+(mode==="compact"?"on":"")+'">'+escapeHtml(t("clockCompact"))+'</button></div></div>'+
+    '<div class="wc-list '+mode+'" id="worldClockList">'+rows+'</div>'+
+    '<form class="wc-add" id="worldClockForm"><input name="tz" type="text" list="tzOptions" placeholder="'+escapeHtml(t("worldClockPh"))+'" autocomplete="off" /><datalist id="tzOptions">'+worldClockZones().slice(0,120).map(function(z){ return '<option value="'+escapeHtml(z)+'">'+escapeHtml(tzLabel(z))+'</option>'; }).join("")+'</datalist><button type="submit">'+escapeHtml(t("addClock"))+'</button></form>'+
   '</div>';
+}
+function refreshWorldClockDom(){
+  var w=$(".world-clock"); if(w){ w.outerHTML=worldClockBody(new Date()); layoutWidgets(); }
 }
 function tickClock(){
   var el=$("#wTime"); if(!el) return;
@@ -118,6 +168,14 @@ function tickClock(){
   if(de) de.textContent=d.toLocaleDateString(LOCALE[state.settings.lang],{weekday:"long",month:"long",day:"numeric"});
   var g=$("#wGreet");
   if(g) g.textContent=h<5?t("goodNight"):h<12?t("goodMorning"):h<18?t("goodAfternoon"):t("goodEvening");
+  var wc=$("#worldClockList");
+  if(wc){
+    $all("[data-tz]", wc).forEach(function(row){
+      var tz=row.getAttribute("data-tz");
+      if(row.classList.contains("wc-chip")){ var b=row.querySelector("b"); if(b) b.textContent=tzTime(tz,d); }
+      else { var sp=row.querySelector("span"); if(sp) sp.textContent=tzTime(tz,d); var em=row.querySelector("em"); if(em) em.textContent=tzOffsetLabel(tz,d); }
+    });
+  }
 }
 function stopClockTimer(){
   if(clockTimer){ clearTimeout(clockTimer); clearInterval(clockTimer); clockTimer=null; }
@@ -311,22 +369,113 @@ function holidayMap(y){
   return m;
 }
 
+function calDateKey(d){
+  var y=d.getFullYear(), m=d.getMonth()+1, day=d.getDate();
+  return y+"-"+(m<10?"0"+m:m)+"-"+(day<10?"0"+day:day);
+}
+function calDateFromKey(k){
+  var p=String(k||"").split("-").map(function(v){ return parseInt(v,10); });
+  if(p.length!==3||!p[0]||!p[1]||!p[2]) return new Date();
+  return new Date(p[0],p[1]-1,p[2]);
+}
+function calStart(d){ return new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime(); }
+function calEvents(){
+  if(!Array.isArray(state.calendarEvents)) state.calendarEvents=[];
+  return state.calendarEvents;
+}
+function calEventsFor(key){
+  return calEvents().filter(function(e){ return e&&e.date===key; }).sort(function(a,b){ return (a.done===b.done?0:(a.done?1:-1)) || ((a.createdAt||0)-(b.createdAt||0)); });
+}
+function calMonthEventCounts(y,m){
+  var out={};
+  calEvents().forEach(function(e){
+    if(!e||!e.date) return;
+    if(e.done && !state.settings.calendarShowDoneBadges) return;
+    var d=calDateFromKey(e.date);
+    if(d.getFullYear()===y&&d.getMonth()===m) out[e.date]=(out[e.date]||0)+1;
+  });
+  return out;
+}
+function calSelectedDate(y,m){
+  var today=new Date(), chosen=ui.calSelected?calDateFromKey(ui.calSelected):null;
+  if(chosen&&chosen.getFullYear()===y&&chosen.getMonth()===m) return chosen;
+  if(today.getFullYear()===y&&today.getMonth()===m) return today;
+  return new Date(y,m,1);
+}
+function calRelativeText(d){
+  var diff=Math.round((calStart(d)-calStart(new Date()))/86400000);
+  if(diff===0) return t("calToday");
+  if(diff===-1) return t("calYesterday");
+  if(diff===1) return t("calTomorrow");
+  return diff<0?t("calDaysAgo",{n:Math.abs(diff)}):t("calDaysLater",{n:diff});
+}
+function calWeekNumber(d){
+  var x=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  x.setHours(0,0,0,0);
+  x.setDate(x.getDate()+3-((x.getDay()+6)%7));
+  var w1=new Date(x.getFullYear(),0,4);
+  return 1+Math.round(((x-w1)/86400000-3+((w1.getDay()+6)%7))/7);
+}
+function calUpcomingEvents(limit){
+  var now=calStart(new Date());
+  return calEvents().filter(function(e){ return e&&!e.done&&e.date&&calStart(calDateFromKey(e.date))>=now; })
+    .sort(function(a,b){ return a.date===b.date?((a.createdAt||0)-(b.createdAt||0)):a.date.localeCompare(b.date); })
+    .slice(0,limit||3);
+}
+function calendarDetail(date, holidayName){
+  var key=calDateKey(date), events=calEventsFor(key), dow=date.getDay(), isWeekend=(dow===0||dow===6);
+  var dateLabel=date.toLocaleDateString(LOCALE[state.settings.lang],{weekday:"long",month:"long",day:"numeric"});
+  var chips='<span>'+escapeHtml(calRelativeText(date))+'</span><span>'+escapeHtml(isWeekend?t("calWeekend"):t("calWeekday"))+'</span><span>'+escapeHtml(t("calWeekNo",{n:calWeekNumber(date)}))+'</span>';
+  if(holidayName) chips+='<span class="holiday-chip">'+escapeHtml(holidayName)+'</span>';
+  var rows="";
+  if(events.length){
+    rows=events.map(function(ev){
+      return '<div class="cal-event'+(ev.done?" done":"")+'" data-event-id="'+escapeHtml(ev.id)+'">'+
+        '<button type="button" class="cal-check" data-cal-done="'+escapeHtml(ev.id)+'" title="'+escapeHtml(t("calToggleDone"))+'">'+(ev.done?"✓":"")+'</button>'+
+        '<span>'+escapeHtml(ev.text)+'</span>'+
+        '<button type="button" class="cal-x" data-cal-del="'+escapeHtml(ev.id)+'" title="'+escapeHtml(t("delete"))+'">×</button>'+
+      '</div>';
+    }).join("");
+  } else {
+    rows='<div class="cal-empty">'+escapeHtml(t("calNoReminder"))+'</div>';
+  }
+  var upcoming=calUpcomingEvents(3).filter(function(ev){ return ev.date!==key; });
+  var up="";
+  if(upcoming.length){
+    up='<div class="cal-upcoming"><div class="cal-subtitle">'+escapeHtml(t("calUpcoming"))+'</div>'+
+      upcoming.map(function(ev){
+        var d=calDateFromKey(ev.date);
+        return '<button type="button" data-cal-open="'+escapeHtml(ev.date)+'"><b>'+escapeHtml(d.toLocaleDateString(LOCALE[state.settings.lang],{month:"short",day:"numeric"}))+'</b><span>'+escapeHtml(ev.text)+'</span></button>';
+      }).join("")+'</div>';
+  }
+  return '<div class="cal-detail" data-cal-selected="'+escapeHtml(key)+'">'+
+    '<div class="cal-picked"><div><b>'+escapeHtml(dateLabel)+'</b><small>'+escapeHtml(key)+'</small></div></div>'+
+    '<div class="cal-chips">'+chips+'</div>'+
+    '<form class="cal-add" id="calEventForm"><input name="event" type="text" maxlength="80" placeholder="'+escapeHtml(t("calReminderPh"))+'" autocomplete="off" /><button type="submit">'+escapeHtml(t("calAddReminder"))+'</button></form>'+
+    '<label class="cal-done-badges"><input type="checkbox" id="calShowDoneBadges"'+(state.settings.calendarShowDoneBadges?" checked":"")+'><span>'+escapeHtml(t("calShowDoneBadges"))+'</span></label>'+
+    '<div class="cal-events">'+rows+'</div>'+up+
+  '</div>';
+}
 function calendarBody(){
   var y=ui.calYear, m=ui.calMonth, first=new Date(y,m,1), startDow=first.getDay(), days=new Date(y,m+1,0).getDate();
   var today=new Date(), isThis=(today.getFullYear()===y&&today.getMonth()===m);
   var monthName=first.toLocaleDateString(LOCALE[state.settings.lang],{month:"long",year:"numeric"});
   var dows=DOWS[state.settings.lang]||DOWS.en;
   var atToday=isThis;
-  var h='<div class="cal-head"><button class="cal-title" data-cal="today" title="'+escapeHtml(t("today"))+'"><span class="m">'+escapeHtml(monthName)+'</span></button><div class="cal-nav"><button data-cal="prev" title="‹">'+ICONS.chevL+'</button><button data-cal="today" class="cal-now'+(atToday?" cur":"")+'" title="'+escapeHtml(t("today"))+'"><span class="dot"></span></button><button data-cal="next" title="›">'+ICONS.chevR+'</button></div></div><div class="cal-grid">';
+  var selected=calSelectedDate(y,m), selectedKey=calDateKey(selected);
+  var yearOpts="", monthOpts="";
+  for(var yy=today.getFullYear()-80; yy<=today.getFullYear()+80; yy++){ yearOpts+='<option value="'+yy+'"'+(yy===y?" selected":"")+'>'+yy+'</option>'; }
+  for(var mm=0; mm<12; mm++){ var md=new Date(y,mm,1); monthOpts+='<option value="'+mm+'"'+(mm===m?" selected":"")+'>'+escapeHtml(md.toLocaleDateString(LOCALE[state.settings.lang],{month:"short"}))+'</option>'; }
+  var h='<div class="cal-head"><button class="cal-title" data-cal="today" title="'+escapeHtml(t("today"))+'"><span class="m">'+escapeHtml(monthName)+'</span></button><div class="cal-nav"><button data-cal="prev" title="‹">'+ICONS.chevL+'</button><button data-cal="today" class="cal-now'+(atToday?" cur":"")+'" title="'+escapeHtml(t("today"))+'"><span class="dot"></span></button><button data-cal="next" title="›">'+ICONS.chevR+'</button></div></div><div class="cal-jump"><select id="calJumpMonth" title="'+escapeHtml(t("calJumpMonth"))+'">'+monthOpts+'</select><select id="calJumpYear" title="'+escapeHtml(t("calJumpYear"))+'">'+yearOpts+'</select></div><div class="cal-grid">';
   dows.forEach(function(d,i){ h+='<div class="dow'+(i===0||i===6?" we":"")+'">'+escapeHtml(d)+'</div>'; });
   for(var i=0;i<startDow;i++){ h+='<div class="day blank"></div>'; }
   var holidays=state.settings.showHolidays===false?{}:holidayMap(y);
-  var monthHols=[];
+  var monthHols=[], eventCounts=calMonthEventCounts(y,m), selectedHoliday=holidays[(selected.getMonth()+1)+"-"+selected.getDate()];
   for(var dd=1;dd<=days;dd++){
     var dow=new Date(y,m,dd).getDay(), we=(dow===0||dow===6);
-    var tdy=isThis&&dd===today.getDate(), hn=holidays[(m+1)+"-"+dd];
+    var key=calDateKey(new Date(y,m,dd)), tdy=isThis&&dd===today.getDate(), hn=holidays[(m+1)+"-"+dd], evn=eventCounts[key]||0;
     if(hn) monthHols.push({d:dd,name:hn});
-    h+='<div class="day'+(tdy?" today":"")+(we?" we":"")+(hn?" holiday":"")+'"'+(hn?' title="'+escapeHtml(hn)+'"':'')+'>'+dd+'</div>';
+    h+='<button type="button" class="day'+(tdy?" today":"")+(we?" we":"")+(hn?" holiday":"")+(key===selectedKey?" selected":"")+(evn?" has-event":"")+'" data-cal-day="'+escapeHtml(key)+'"'+(hn?' title="'+escapeHtml(hn)+'"':'')+'><span>'+dd+'</span>'+(evn?'<i>'+evn+'</i>':"")+'</button>';
   }
   for(var tail=startDow+days; tail<42; tail++){ h+='<div class="day blank"></div>'; }
   h+='</div>';
@@ -335,17 +484,25 @@ function calendarBody(){
     monthHols.forEach(function(o){ h+='<div class="cal-hol"'+( (isThis&&o.d===today.getDate())?' data-tdy="1"':'')+'><span class="hd">'+o.d+'</span><span class="hn">'+escapeHtml(o.name)+'</span></div>'; });
     h+='</div>';
   }
+  h+=calendarDetail(selected, selectedHoliday);
   return h;
 }
 function listBody(kind){
   var items,empty;
-  if(kind==="frequent"){ items=state.bookmarks.filter(function(b){return (b.clicks||0)>0;}).sort(function(a,b){return (b.clicks||0)-(a.clicks||0);}).slice(0,5); empty=t("frequentEmpty"); }
+  if(kind==="frequent"){
+    var favs=state.bookmarks.filter(function(b){return !!b.favorite;}).sort(function(a,b){return (b.lastOpened||0)-(a.lastOpened||0);}).slice(0,4);
+    var favIds={}; favs.forEach(function(b){ favIds[b.id]=1; });
+    var auto=state.bookmarks.filter(function(b){return !favIds[b.id]&&(b.clicks||0)>0;}).sort(function(a,b){return (b.clicks||0)-(a.clicks||0);}).slice(0,Math.max(0,5-favs.length));
+    items=favs.concat(auto); empty=t("frequentEmpty");
+  }
   else { items=state.bookmarks.filter(function(b){return (b.lastOpened||0)>0;}).sort(function(a,b){return (b.lastOpened||0)-(a.lastOpened||0);}).slice(0,5); empty=t("recentEmpty"); }
-  if(!items.length){ return '<div class="w-empty">'+escapeHtml(empty)+'</div>'; }
-  var h='<div class="mini-list">';
+  var hasStats=kind==="frequent"?state.bookmarks.some(function(b){ return (b.clicks||0)>0; }):state.bookmarks.some(function(b){ return (b.lastOpened||0)>0; });
+  var h='<div class="mini-tools"><button type="button" data-list-clear="'+kind+'"'+(hasStats?"":" disabled")+'>'+escapeHtml(kind==="frequent"?t("clearFrequent"):t("clearRecent"))+'</button></div>';
+  if(!items.length){ return h+'<div class="w-empty">'+escapeHtml(empty)+'</div>'; }
+  h+='<div class="mini-list">';
   items.forEach(function(b,i){
     var dom=getDomain(b.url), hue=hashHue(dom||b.title), letter=(b.title||dom||"?").trim().charAt(0)||"?", fav=faviconUrl(b.url);
-    var badge = kind==="frequent"?'<span class="mbadge">'+b.clicks+'</span>':'<span class="msub mini-time">'+escapeHtml(timeAgo(b.lastOpened))+'</span>';
+    var badge = kind==="frequent"?'<button type="button" class="fav-toggle'+(b.favorite?" on":"")+'" data-fav-toggle="'+escapeHtml(b.id)+'" title="'+escapeHtml(b.favorite?t("removeFavorite"):t("addFavorite"))+'">★</button>':'<span class="msub mini-time">'+escapeHtml(timeAgo(b.lastOpened))+'</span>';
     var sub = prettyUrl(b.url);
     h+='<div class="mini" style="--i:'+i+'" data-open="'+escapeHtml(b.id)+'" title="'+escapeHtml(b.url)+'"><div class="fav" style="--c:'+hue+'"><span class="letter">'+escapeHtml(letter)+'</span>'+(fav?'<img class="fav-img" loading="lazy" alt="" src="'+escapeHtml(fav)+'"/>':'')+'</div><div class="mtext"><div class="mname">'+escapeHtml(b.title||dom)+'</div><div class="msub">'+escapeHtml(sub)+'</div></div>'+badge+'</div>';
   });
@@ -355,15 +512,95 @@ function listBody(kind){
 // widget interactions
 widgetsEl.addEventListener("click", function(e){
   var eng=e.target.closest("[data-engine]"); if(eng){ state.settings.searchEngine=eng.getAttribute("data-engine"); save(); refreshSearchWidget(); return; }
+  var favToggle=e.target.closest("[data-fav-toggle]"); if(favToggle){ e.stopPropagation(); toggleFavoriteBookmark(favToggle.getAttribute("data-fav-toggle")); return; }
+  var listClear=e.target.closest("[data-list-clear]"); if(listClear&&!listClear.disabled){ clearWidgetList(listClear.getAttribute("data-list-clear")); return; }
+  var clockMode=e.target.closest("[data-clock-mode]"); if(clockMode){ state.settings.worldClockMode=clockMode.getAttribute("data-clock-mode")==="compact"?"compact":"stack"; save(); refreshWorldClockDom(); return; }
+  var clockRemove=e.target.closest("[data-clock-remove]"); if(clockRemove){ removeWorldClock(clockRemove.getAttribute("data-clock-remove")); return; }
   var open=e.target.closest("[data-open]"); if(open){ openBookmark(open.getAttribute("data-open")); return; }
-  var cal=e.target.closest("[data-cal]"); if(cal){ var a=cal.getAttribute("data-cal"); if(a==="prev"){ ui.calMonth--; if(ui.calMonth<0){ui.calMonth=11;ui.calYear--;} } else if(a==="next"){ ui.calMonth++; if(ui.calMonth>11){ui.calMonth=0;ui.calYear++;} } else { ui.calMonth=new Date().getMonth(); ui.calYear=new Date().getFullYear(); } refreshCalDom(); return; }
+  var calDay=e.target.closest("[data-cal-day]"); if(calDay){ ui.calSelected=calDay.getAttribute("data-cal-day"); refreshCalDom(); return; }
+  var calOpen=e.target.closest("[data-cal-open]"); if(calOpen){ var od=calDateFromKey(calOpen.getAttribute("data-cal-open")); ui.calYear=od.getFullYear(); ui.calMonth=od.getMonth(); ui.calSelected=calDateKey(od); refreshCalDom(); return; }
+  var calDone=e.target.closest("[data-cal-done]"); if(calDone){ toggleCalendarEvent(calDone.getAttribute("data-cal-done")); return; }
+  var calDel=e.target.closest("[data-cal-del]"); if(calDel){ deleteCalendarEvent(calDel.getAttribute("data-cal-del")); return; }
+  var cal=e.target.closest("[data-cal]"); if(cal){ var a=cal.getAttribute("data-cal"); if(a==="prev"){ ui.calMonth--; if(ui.calMonth<0){ui.calMonth=11;ui.calYear--;} } else if(a==="next"){ ui.calMonth++; if(ui.calMonth>11){ui.calMonth=0;ui.calYear++;} } else { var td=new Date(); ui.calMonth=td.getMonth(); ui.calYear=td.getFullYear(); ui.calSelected=calDateKey(td); } refreshCalDom(); return; }
   var unit=e.target.closest("[data-unit]"); if(unit){ state.settings.weatherUnit=unit.getAttribute("data-unit"); save(); if(state.settings.weather) fetchWeather(state.settings.weather.lat,state.settings.weather.lon); return; }
   var wloc=e.target.closest("[data-wloc]"); if(wloc){ selectWeatherResult(+wloc.getAttribute("data-wloc")); return; }
   var wact=e.target.closest("[data-wact]"); if(wact){ var act=wact.getAttribute("data-wact"); if(act==="geo"){ ui.geoTried=false; ui.weatherPanel=""; weatherSearchResults=[]; weatherSearchQuery=""; weatherCache=null; state.settings.weather=null; save(); refreshWeatherDom(); ensureWeather(); } else if(act==="retry"){ weatherCache=null; ui.geoTried=false; refreshWeatherDom(); ensureWeather(); } else if(act==="forecast"){ ui.weatherPanel=ui.weatherPanel==="forecast"?"":"forecast"; refreshWeatherDom(); } else if(act==="changeWeather"){ ui.weatherPanel=ui.weatherPanel==="search"?"":"search"; refreshWeatherDom(); } else if(act==="closePanel"){ ui.weatherPanel=""; refreshWeatherDom(); } else if(act==="ipretry"){ netInfoCache=null; refreshNetInfoDom(); ensureNetInfo(); } return; }
 });
-widgetsEl.addEventListener("submit", function(e){ if(e.target.id==="wxForm"||e.target.id==="wxSearchForm"){ e.preventDefault(); var inp=e.target.querySelector("input"); var city=inp&&inp.value.trim(); if(city) geocodeCity(city); } if(e.target.id==="gForm"){ e.preventDefault(); runWebSearch(e.target.elements.q&&e.target.elements.q.value); } });
+widgetsEl.addEventListener("submit", function(e){
+  if(e.target.id==="wxForm"||e.target.id==="wxSearchForm"){ e.preventDefault(); var inp=e.target.querySelector("input"); var city=inp&&inp.value.trim(); if(city) geocodeCity(city); }
+  if(e.target.id==="gForm"){ e.preventDefault(); runWebSearch(e.target.elements.q&&e.target.elements.q.value); }
+  if(e.target.id==="calEventForm"){
+    e.preventDefault();
+    var text=e.target.elements.event&&e.target.elements.event.value.trim();
+    var box=e.target.closest("[data-cal-selected]");
+    if(text&&box) addCalendarEvent(box.getAttribute("data-cal-selected"), text);
+  }
+  if(e.target.id==="worldClockForm"){
+    e.preventDefault();
+    var tz=e.target.elements.tz&&e.target.elements.tz.value.trim();
+    addWorldClock(tz);
+  }
+});
+widgetsEl.addEventListener("change", function(e){
+  if(e.target.id==="calJumpMonth"||e.target.id==="calJumpYear"){
+    var jm=$("#calJumpMonth"), jy=$("#calJumpYear");
+    ui.calMonth=jm?Number(jm.value):ui.calMonth;
+    ui.calYear=jy?Number(jy.value):ui.calYear;
+    var d=calSelectedDate(ui.calYear,ui.calMonth);
+    if(d.getFullYear()!==ui.calYear||d.getMonth()!==ui.calMonth) d=new Date(ui.calYear,ui.calMonth,1);
+    ui.calSelected=calDateKey(d);
+    refreshCalDom();
+    return;
+  }
+  if(e.target.id==="calShowDoneBadges"){
+    state.settings.calendarShowDoneBadges=e.target.checked;
+    save(); refreshCalDom();
+  }
+});
 function refreshSearchWidget(){ var w=widgetsEl.querySelector('.widget[data-w="search"]'); if(w){ var head=w.querySelector('.w-head'); w.innerHTML=(head?head.outerHTML:"")+searchBody(); } }
+function refreshListWidget(kind){ var w=widgetsEl.querySelector('.widget[data-w="'+kind+'"]'); if(w){ var head=w.querySelector('.w-head'); w.innerHTML=(head?head.outerHTML:"")+listBody(kind); layoutWidgets(); } }
 widgetsEl.addEventListener("error", function(e){ var tg=e.target; if(tg&&tg.classList&&tg.classList.contains("fav-img")) tg.classList.add("hide"); }, true);
+
+function addWorldClock(q){
+  var tz=findTimeZone(q);
+  if(!tz){ toast(t("worldClockNotFound"),"err"); return; }
+  var list=worldClockList();
+  if(list.some(function(c){ return (typeof c==="string"?c:c.tz)===tz; })){ toast(t("worldClockExists"),"err"); return; }
+  list.push({tz:tz});
+  save(); refreshWorldClockDom(); toast(t("worldClockAdded"),"ok");
+}
+function removeWorldClock(tz){
+  var before=worldClockList().length;
+  state.settings.worldClocks=worldClockList().filter(function(c){ return (typeof c==="string"?c:c.tz)!==tz; });
+  if(state.settings.worldClocks.length!==before){ save(); refreshWorldClockDom(); }
+}
+function toggleFavoriteBookmark(id){
+  var b=byId(id); if(!b) return;
+  b.favorite=!b.favorite; save(); refreshListWidget("frequent"); toast(b.favorite?t("favoriteAdded"):t("favoriteRemoved"),"ok");
+}
+function clearWidgetList(kind){
+  if(kind==="recent"){
+    state.bookmarks.forEach(function(b){ b.lastOpened=0; });
+    save(); refreshListWidget("recent"); toast(t("recentCleared"),"ok"); return;
+  }
+  state.bookmarks.forEach(function(b){ b.clicks=0; });
+  save(); refreshListWidget("frequent"); toast(t("frequentCleared"),"ok");
+}
+
+function addCalendarEvent(date,text){
+  calEvents().push({id:uid(), date:date, text:text, done:false, createdAt:Date.now()});
+  save(); refreshCalDom(); toast(t("calReminderAdded"),"ok");
+}
+function toggleCalendarEvent(id){
+  var ev=calEvents().find(function(e){ return e&&e.id===id; });
+  if(!ev) return;
+  ev.done=!ev.done; save(); refreshCalDom(); toast(ev.done?t("calReminderDone"):t("calReminderRestored"),"ok");
+}
+function deleteCalendarEvent(id){
+  var before=calEvents().length;
+  state.calendarEvents=calEvents().filter(function(e){ return !e||e.id!==id; });
+  if(state.calendarEvents.length!==before){ save(); refreshCalDom(); toast(t("calReminderDeleted"),"ok"); }
+}
 
 function geocodeCity(city){
   weatherSearching=true; weatherSearchQuery=city; weatherSearchResults=[]; ui.weatherPanel="search"; refreshWeatherDom();

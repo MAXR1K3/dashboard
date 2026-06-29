@@ -23,14 +23,14 @@ function deriveCats(items){ var seen={},out=[]; (items||[]).forEach(function(b){
 /* ----- per-profile data cache ----- */
 function profileDataSnapshot(extra){
   return Object.assign({
-    bookmarks:state.bookmarks, categories:state.categories, trash:state.trash,
+    bookmarks:state.bookmarks, categories:state.categories, trash:state.trash, calendarEvents:state.calendarEvents,
     theme:state.theme, view:state.view, settings:state.settings
   }, extra||{});
 }
 function cacheProfileData(id, data){
   try{
     localStorage.setItem(PDATA_PREFIX+id, JSON.stringify({
-      bookmarks:data.bookmarks||[], categories:data.categories||[], trash:Array.isArray(data.trash)?data.trash:[],
+      bookmarks:data.bookmarks||[], categories:data.categories||[], trash:Array.isArray(data.trash)?data.trash:[], calendarEvents:Array.isArray(data.calendarEvents)?data.calendarEvents:[],
       theme:data.theme||"light", view:(data.view==="list2"?"list":data.view)||"grid",
       settings:data.settings||null, at:Date.now()
     }));
@@ -42,6 +42,7 @@ function applyProfileData(data){
   state.bookmarks=data&&Array.isArray(data.bookmarks)?cloneJson(data.bookmarks):[];
   state.categories=data&&Array.isArray(data.categories)?cloneJson(data.categories):[];
   state.trash=data&&Array.isArray(data.trash)?cloneJson(data.trash):[];
+  state.calendarEvents=data&&Array.isArray(data.calendarEvents)?cloneJson(data.calendarEvents):[];
   if(data&&data.theme) state.theme=data.theme;
   if(data&&data.view) state.view=(data.view==="list2"?"list":data.view)||"grid";
   if(data&&data.settings&&typeof mergeDashboardSettings==="function"){
@@ -124,6 +125,10 @@ function syncProfile(id){
     .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.text(); })
     .then(function(txt){
       var data=parseRemote(txt); if(!data) throw new Error(t("syncBadData"));
+      if(!Array.isArray(data.calendarEvents)){
+        var cached=loadProfileData(id);
+        data.calendarEvents=Array.isArray(cached&&cached.calendarEvents)?cached.calendarEvents:(state.settings.activeProfile===id?state.calendarEvents:[]);
+      }
       cacheProfileData(id, data);
       if(state.settings.activeProfile===id){ applyProfileData(data); saveSilently(); render(); }
       setSyncStatus("remote", Date.now());

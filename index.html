@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="css/app.css?v=26" />
+  <link rel="stylesheet" href="css/app.css?v=38" />
 </head>
 <body>
   <div id="bgLayer"></div>
@@ -22,6 +22,7 @@
       <div class="search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
         <input id="search" type="text" data-i18n-ph="searchPh" autocomplete="off" />
+        <button class="search-cmd" id="searchCmdBtn" type="button" data-i18n-title="palTip" data-i18n-aria="palTip"><span class="sc-ico"></span><kbd id="searchCmdKbd">⌘K</kbd></button>
       </div>
       <div class="actions">
         <button class="btn icon" id="langBtn" title="Language"><span class="lang-code" id="langCode">EN</span></button>
@@ -49,6 +50,7 @@
             <button data-act="summaries"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/><path d="M5 4v4M3 6h4"/></svg> <span data-i18n="summarizeMissing">Summarize descriptions</span></button>
             <button data-act="suggest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 1 6 6c0 2.2-1.2 3.6-2.4 4.8-.7.7-1.1 1.4-1.3 2.2H9.7c-.2-.8-.6-1.5-1.3-2.2C7.2 12.6 6 11.2 6 9a6 6 0 0 1 6-6z"/><path d="M9.5 19h5M10.5 22h3"/></svg> <span data-i18n="aiSuggest">AI category suggestions</span></button>
             <button data-act="health"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 8-4-16-3 8H2"/></svg> <span data-i18n="healthCheck">Check links</span></button>
+            <button data-act="healthIssues"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 8v5"/><path d="M12 17h.01"/></svg> <span data-i18n="healthIssues">Invalid links</span></button>
             <button data-act="trash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v5M14 11v5"/></svg> <span data-i18n="trash">Trash</span></button>
             <hr/>
             <button class="danger-item" data-act="clear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg> <span data-i18n="clearAll">Clear everything</span></button>
@@ -107,11 +109,16 @@
           </div>
           <textarea id="bmDesc" data-i18n-ph="descPh"></textarea>
         </div>
+        <div class="field"><label data-i18n="tagsLabel">Tags</label><input id="bmTags" type="text" data-i18n-ph="tagsPh" autocomplete="off" /></div>
         <div class="field" id="bmOptionsField">
           <label data-i18n="bookmarkOptions">Bookmark options</label>
           <div class="set-row compact">
             <div class="info"><div class="t" data-i18n="pinBookmark">Keep this bookmark position</div><div class="d" data-i18n="pinBookmarkDesc">Ignore browser sync order for this bookmark.</div></div>
             <label class="switch"><input type="checkbox" id="bmPinned"><span class="track"></span></label>
+          </div>
+          <div class="set-row compact">
+            <div class="info"><div class="t" data-i18n="favoriteBookmark">Favorite shortcut</div><div class="d" data-i18n="favoriteBookmarkDesc">Show this bookmark first in the frequently used widget.</div></div>
+            <label class="switch"><input type="checkbox" id="bmFavorite"><span class="track"></span></label>
           </div>
           <div class="set-row compact" id="bmHealthRow">
             <div class="info"><div class="t" data-i18n="healthMenu">Link status</div><div class="d" data-i18n="healthManualDesc">Manually override the detected link status.</div></div>
@@ -131,6 +138,10 @@
         <div class="set-row compact" id="promptPinRow" style="display:none">
           <div class="info"><div class="t" id="promptPinTitle"></div><div class="d" id="promptPinDesc"></div></div>
           <label class="switch"><input type="checkbox" id="promptPin"><span class="track"></span></label>
+        </div>
+        <div class="set-row compact" id="promptColorRow" style="display:none">
+          <div class="info"><div class="t" id="promptColorTitle"></div><div class="d" id="promptColorDesc"></div></div>
+          <div class="color-setting"><input type="color" id="promptColor" value="#6d5efc" /><button class="btn" id="promptColorReset" type="button" data-i18n="categoryColorReset">Default</button></div>
         </div>
       </div>
       <div class="modal-foot"><button class="btn" data-close data-i18n="cancel">Cancel</button><button class="btn primary" id="promptSave" data-i18n="save">Save</button></div>
@@ -238,9 +249,14 @@
         </div>
         <div class="set-section">
           <h4 data-i18n="dataBackup">Data &amp; backup</h4>
+          <div class="set-row"><div class="info"><div class="t" data-i18n="storageUsage">Local storage used</div><div class="d" id="storageUsageDesc"></div></div><div class="storage-meter"><div class="storage-bar"><i id="storageBarFill"></i></div><span id="storageUsageVal"></span></div></div>
           <div class="set-row"><div class="info"><div class="t" data-i18n="exportJsonLabel">Export bookmarks.json</div><div class="d" data-i18n="exportJsonDesc">Download a full JSON backup (bookmarks, categories, settings)</div></div><button class="btn" id="exportJsonBtn" data-i18n="exportBtn">Export</button></div>
           <div class="set-row"><div class="info"><div class="t" data-i18n="importJsonLabel">Import bookmarks.json</div><div class="d" data-i18n="importJsonDesc">Restore from a JSON backup file (replaces current data)</div></div><button class="btn" id="importJsonBtn" data-i18n="importBtnLabel">Import</button></div>
           <div class="set-row"><div class="info"><div class="t" data-i18n="restorePrevLabel">Restore previous version</div><div class="d" data-i18n="restorePrevDesc">Revert to the snapshot saved before the last import/restore</div></div><button class="btn" id="restorePrevBtn" data-i18n="restoreBtn">Restore</button></div>
+        </div>
+        <div class="set-section">
+          <h4 data-i18n="privacySec">Privacy</h4>
+          <div class="set-row"><div class="info"><div class="t" data-i18n="privacyMode">Privacy mode</div><div class="d" data-i18n="privacyModeDesc">Stop automatic external requests: no site icons from Google, no page fetching for auto-descriptions. Weather, IP and online wallpapers stay under their own settings.</div></div><label class="switch"><input type="checkbox" id="setPrivacy"><span class="track"></span></label></div>
         </div>
         </div><!-- /general -->
         <div class="set-tab" data-tab="sync">
@@ -407,6 +423,24 @@
     </div>
   </div>
 
+  <div class="overlay" id="healthOverlay">
+    <div class="modal wide" role="dialog" aria-modal="true">
+      <div class="modal-head"><h2 data-i18n="healthIssues">Invalid links</h2><p data-i18n="healthIssuesSub">Review links marked invalid or uncertain after checking.</p></div>
+      <div class="modal-body scroll">
+        <div class="health-head-row">
+          <div class="seg sm" id="healthIssueFilter">
+            <button data-health-filter="all" class="on" data-i18n="healthIssueAll">All</button>
+            <button data-health-filter="bad" data-i18n="healthIssueBad">Invalid</button>
+            <button data-health-filter="warn" data-i18n="healthIssueWarn">Uncertain</button>
+          </div>
+          <button class="btn sm" id="healthRecheckBtn" data-i18n="healthCheck">Check links</button>
+        </div>
+        <div class="health-list" id="healthIssueList"></div>
+      </div>
+      <div class="modal-foot"><button class="btn primary" data-close data-i18n="done">Done</button></div>
+    </div>
+  </div>
+
   <div class="overlay" id="suggestOverlay">
     <div class="modal wide" role="dialog" aria-modal="true">
       <div class="modal-head"><h2 data-i18n="aiSuggest">AI category suggestions</h2><p data-i18n="suggSub">Based on title, URL, domain and description. Nothing changes until you apply.</p></div>
@@ -457,6 +491,8 @@
 <script src="js/sync.js"></script>
 <script src="js/pwa.js"></script>
 <script src="js/auto-theme.js"></script>
+<script src="js/palette.js"></script>
+<script src="js/contextmenu.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

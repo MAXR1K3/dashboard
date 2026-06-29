@@ -15,7 +15,8 @@ function uniqueCatName(v, oldName){ var c=cleanCatName(v); if(!c||isReservedCat(
 function cssEscape(s){ if(window.CSS&&CSS.escape) return CSS.escape(String(s)); return String(s).replace(/[^a-zA-Z0-9_-]/g,function(ch){ return "\\"+ch; }); }
 function getDomain(u){ try{ return new URL(normalizeUrl(u)).hostname.replace(/^www\./,""); }catch(e){ return (u||"").replace(/^https?:\/\//,"").replace(/^www\./,"").split(/[/?#]/)[0]; } }
 function prettyUrl(u){ try{ var o=new URL(normalizeUrl(u)); var p=(o.pathname+o.search).replace(/\/$/,""); return o.hostname.replace(/^www\./,"")+(p&&p!=="/"?p:""); }catch(e){ return u; } }
-function faviconUrl(u){ var d=getDomain(u); if(!d) return ""; return "https://www.google.com/s2/favicons?sz=64&domain="+encodeURIComponent(d); }
+// 隐私模式下不向第三方（Google）请求站点图标，仅用字母占位
+function faviconUrl(u){ if(state.settings&&state.settings.privacy) return ""; var d=getDomain(u); if(!d) return ""; return "https://www.google.com/s2/favicons?sz=64&domain="+encodeURIComponent(d); }
 function hashHue(s){ var h=0; s=s||""; for(var i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))%360; } return h; }
 function byId(id){ for(var i=0;i<state.bookmarks.length;i++){ if(state.bookmarks[i].id===id) return state.bookmarks[i]; } return null; }
 
@@ -25,8 +26,17 @@ function save(){
   catch(e){
     // Likely quota — drop undo snapshots (largest payload) and retry once so data still persists.
     if(typeof oplogDropSnaps==="function") oplogDropSnaps();
-    try{ localStorage.setItem(KEY, JSON.stringify(state)); return true; }catch(e2){ return false; }
+    try{ localStorage.setItem(KEY, JSON.stringify(state)); return true; }
+    catch(e2){ warnStorageFull(); return false; }
   }
+}
+// 本地存储用量（以序列化后的字符数估算，localStorage 上限通常约 5MB）
+var STORAGE_BUDGET=5*1024*1024, _storageWarned=false;
+function storageBytes(){ try{ return JSON.stringify(state).length; }catch(e){ return 0; } }
+function storageInfo(){ var b=storageBytes(); return { bytes:b, kb:Math.round(b/1024), pct:Math.min(100, Math.round(b/STORAGE_BUDGET*100)) }; }
+function warnStorageFull(){
+  if(_storageWarned) return; _storageWarned=true;
+  if(typeof toast==="function") toast(t("storageFull"),"err");
 }
 function load(){
   var raw=null; try{ raw=localStorage.getItem(KEY)||localStorage.getItem("navi.dashboard.v2"); }catch(e){}
@@ -34,15 +44,18 @@ function load(){
     var d=defaults();
     state.bookmarks=s.bookmarks; state.categories=Array.isArray(s.categories)?s.categories:[];
     state.trash=Array.isArray(s.trash)?s.trash:[];
+    state.calendarEvents=Array.isArray(s.calendarEvents)?s.calendarEvents:[];
     state.opLog=Array.isArray(s.opLog)?s.opLog:[];
     state.theme=s.theme||"light"; state.view=(s.view==="list2"?"list":s.view)||"grid";
     state.settings=Object.assign({}, d.settings, s.settings||{});
+    state.settings.worldClocks=Array.isArray(state.settings.worldClocks)?state.settings.worldClocks:[];
     state.settings.widgets=Object.assign({}, d.settings.widgets, (s.settings&&s.settings.widgets)||{});
     state.settings.widgetSize=Object.assign({}, d.settings.widgetSize, (s.settings&&s.settings.widgetSize)||{});
     state.settings.background=Object.assign({}, d.settings.background, (s.settings&&s.settings.background)||{});
     state.settings.browserSyncLastSync=Object.assign({}, d.settings.browserSyncLastSync, (s.settings&&s.settings.browserSyncLastSync)||{});
     state.settings.browserSyncCounts=Object.assign({}, d.settings.browserSyncCounts, (s.settings&&s.settings.browserSyncCounts)||{});
     state.settings.pinnedCategories=Object.assign({}, d.settings.pinnedCategories, (s.settings&&s.settings.pinnedCategories)||{});
+    state.settings.categoryColors=Object.assign({}, d.settings.categoryColors, (s.settings&&s.settings.categoryColors)||{});
     if(!(s.settings&&s.settings.browserSyncSource)) state.settings.browserSyncSource=defaultBrowserSyncSource();
     if(!(s.settings&&s.settings.browserSyncMode)) state.settings.browserSyncMode=state.settings.chromeSyncReplace?"replaceAll":"merge";
     if(state.settings.chromeSyncLastSync&&!state.settings.browserSyncLastSync.chrome) state.settings.browserSyncLastSync.chrome=state.settings.chromeSyncLastSync;
@@ -54,6 +67,8 @@ function load(){
     if(state.settings.logRetention==null) state.settings.logRetention=2;
     if(!(s.settings&&s.settings.motionMode)) state.settings.motionMode=(state.settings.lowPower===false&&state.settings.animations)?"smooth":"low";
     if(!Array.isArray(state.settings.widgetOrder)) state.settings.widgetOrder=d.settings.widgetOrder.slice();
+    if(state.settings.calendarShowDoneBadges==null) state.settings.calendarShowDoneBadges=false;
+    if(state.settings.worldClockMode!=="compact") state.settings.worldClockMode="stack";
     var migrated=migratePowerProfile();
     normalizeWidgetOrder();
     rebuildCategories(); if(migrated) save(); return;
@@ -110,7 +125,7 @@ function rebuildCategories(){
     b.url=normalizeUrl(b.url||"");
     b.category=cleanCatName(b.category)||"Uncategorized";
     if(isReservedCat(b.category)) b.category="Uncategorized";
-    if(typeof b.clicks!=="number") b.clicks=0; if(typeof b.lastOpened!=="number") b.lastOpened=0;
+    if(typeof b.clicks!=="number") b.clicks=0; if(typeof b.lastOpened!=="number") b.lastOpened=0; b.favorite=!!b.favorite;
     if(typeof b.description!=="string"||!b.description.trim()) b.description=smartSummary(b.url,b.title,b.category,"");
     if(!have[b.category]){ have[b.category]=true; state.categories.push(b.category); }
   });
@@ -123,6 +138,7 @@ function applyI18n(){
   $all("[data-i18n]").forEach(function(el){ el.textContent = t(el.getAttribute("data-i18n")); });
   $all("[data-i18n-ph]").forEach(function(el){ el.setAttribute("placeholder", t(el.getAttribute("data-i18n-ph"))); });
   $all("[data-i18n-title]").forEach(function(el){ el.setAttribute("title", t(el.getAttribute("data-i18n-title"))); });
+  $all("[data-i18n-aria]").forEach(function(el){ el.setAttribute("aria-label", t(el.getAttribute("data-i18n-aria"))); });
   $("#langCode").textContent = LANGCODE[state.settings.lang];
 }
 

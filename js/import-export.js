@@ -63,9 +63,11 @@ function mergeDashboardSettings(baseSettings, incomingSettings, opts){
   merged.widgetSize=Object.assign({}, d.settings.widgetSize, incoming.widgetSize||{});
   merged.background=Object.assign({}, d.settings.background, incoming.background||{});
   merged.engineUsage=Object.assign({}, d.settings.engineUsage, incoming.engineUsage||{});
+  merged.worldClocks=Array.isArray(incoming.worldClocks)?clonePlain(incoming.worldClocks):[];
   merged.browserSyncLastSync=Object.assign({}, d.settings.browserSyncLastSync, incoming.browserSyncLastSync||{});
   merged.browserSyncCounts=Object.assign({}, d.settings.browserSyncCounts, incoming.browserSyncCounts||{});
   merged.pinnedCategories=Object.assign({}, d.settings.pinnedCategories, incoming.pinnedCategories||{});
+  merged.categoryColors=Object.assign({}, d.settings.categoryColors, incoming.categoryColors||{});
   if(opts.preserveProfiles){
     merged.profiles=clonePlain(base.profiles||d.settings.profiles);
     merged.activeProfile=base.activeProfile||"local";
@@ -94,6 +96,7 @@ function normalizeBookmarkPayload(b){
   if(isReservedCat(out.category)) out.category="Uncategorized";
   out.description=typeof out.description==="string"?out.description:"";
   out.tags=Array.isArray(out.tags)?out.tags:[];
+  out.favorite=!!out.favorite;
   if(typeof out.clicks!=="number") out.clicks=0;
   if(typeof out.lastOpened!=="number") out.lastOpened=0;
   return out;
@@ -105,6 +108,7 @@ function normalizeDashboardPayload(obj, opts){
   out.bookmarks=obj.bookmarks.map(normalizeBookmarkPayload).filter(function(b){ return isWebUrl(b.url); });
   out.categories=Array.isArray(obj.categories)?obj.categories.map(cleanCatName).filter(Boolean):derivePayloadCats(out.bookmarks);
   out.trash=Array.isArray(obj.trash)?clonePlain(obj.trash):[];
+  out.calendarEvents=Array.isArray(obj.calendarEvents)?clonePlain(obj.calendarEvents):null;
   out.theme=obj.theme||state.theme||"light";
   out.view=(obj.view==="list2"?"list":obj.view)||state.view||"grid";
   out.settings=obj.settings&&typeof obj.settings==="object" ? mergeDashboardSettings(state.settings, obj.settings, opts) : null;
@@ -112,7 +116,7 @@ function normalizeDashboardPayload(obj, opts){
 }
 function buildBackup(){
   return { schema:"navi-bookmarks", version:3, app:state.settings.appName||"Navi", exportedAt:new Date().toISOString(),
-    theme:state.theme, view:state.view, bookmarks:state.bookmarks, categories:state.categories, trash:state.trash, settings:state.settings };
+    theme:state.theme, view:state.view, bookmarks:state.bookmarks, categories:state.categories, trash:state.trash, calendarEvents:state.calendarEvents, settings:state.settings };
 }
 function downloadBlob(text, mime, name){
   var blob=new Blob([text],{type:mime}), a=document.createElement("a");
@@ -127,7 +131,7 @@ function exportJSON(){
     toast(t("backupExported"),"ok");
   }catch(e){ toast(t("couldntRead"),"err"); }
 }
-function snapshotPrev(){ try{ localStorage.setItem(BACKUP_PREV_KEY, JSON.stringify({ bookmarks:state.bookmarks, categories:state.categories, trash:state.trash, theme:state.theme, view:state.view, settings:state.settings, savedAt:Date.now() })); }catch(e){} }
+function snapshotPrev(){ try{ localStorage.setItem(BACKUP_PREV_KEY, JSON.stringify({ bookmarks:state.bookmarks, categories:state.categories, trash:state.trash, calendarEvents:state.calendarEvents, theme:state.theme, view:state.view, settings:state.settings, savedAt:Date.now() })); }catch(e){} }
 function applyBackupObj(obj){
   var data=normalizeDashboardPayload(obj,{});
   if(!data){ toast(t("backupInvalid"),"err"); return false; }
@@ -135,6 +139,7 @@ function applyBackupObj(obj){
   state.bookmarks=data.bookmarks;
   state.categories=data.categories;
   state.trash=data.trash;
+  if(Array.isArray(data.calendarEvents)) state.calendarEvents=data.calendarEvents;
   state.theme=data.theme;
   state.view=data.view;
   if(data.settings) state.settings=data.settings;

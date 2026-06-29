@@ -3,6 +3,8 @@
 
 /* ===== render ===== */
 var contentEl=$("#content"), widgetsEl=$("#widgets"), gridEl=null, _gridRendered=false;
+// 大列表分块渲染：先渲染前 RENDER_BASE 张，滚动到底再追加，避免上千书签一次性入 DOM
+var RENDER_BASE=160, RENDER_STEP=120, _renderLimit=160, _lastViewKey="", _gridMoreObserver=null;
 
 function counts(){ var m={All:state.bookmarks.length}; state.categories.forEach(function(c){ m[c]=0; }); state.bookmarks.forEach(function(b){ m[b.category]=(m[b.category]||0)+1; }); return m; }
 function catLabel(c){ return c==="Uncategorized"? t("uncategorized") : c; }
@@ -10,6 +12,14 @@ function catLabel(c){ return c==="Uncategorized"? t("uncategorized") : c; }
 function viewBtnIcon(){ return state.view==="list"?ICONS.grid:ICONS.list2; }
 function pinnedCats(){ if(!state.settings.pinnedCategories) state.settings.pinnedCategories={}; return state.settings.pinnedCategories; }
 function isCatPinned(cat){ return !!pinnedCats()[cat]; }
+function categoryColor(cat){
+  var c=state.settings.categoryColors&&state.settings.categoryColors[cat];
+  return /^#[0-9a-fA-F]{6}$/.test(String(c||"")) ? String(c).toLowerCase() : "";
+}
+function categoryColorStyle(cat){
+  var c=categoryColor(cat);
+  return c ? ' style="color:'+c+'"' : "";
+}
 function themeBtnIcon(){
   if(state.theme==="auto") return ICONS.autoTheme;
   return state.theme==="dark"?ICONS.sun:ICONS.moon;
@@ -34,7 +44,7 @@ function renderCategories(){
   if(mode==="drawer"){
     drawer.style.display="";
     var dtLabel=ui.activeCat==="All"?t("categoriesTitle"):catLabel(ui.activeCat);
-    bar.innerHTML='<button class="drawer-toggle" id="drawerToggle" title="'+escapeHtml(dtLabel)+'">'+ICONS.layers+'<span class="dt-label">'+escapeHtml(dtLabel)+'</span></button>';
+    bar.innerHTML='<button class="drawer-toggle" id="drawerToggle" title="'+escapeHtml(dtLabel)+'">'+ICONS.layers+'<span class="dt-label"'+categoryColorStyle(ui.activeCat)+'>'+escapeHtml(dtLabel)+'</span></button>';
     drawer.innerHTML=drawerInner(c);
   } else if(mode==="dropdown"){
     closeDrawerOverlay(); drawer.style.display="none";
@@ -47,13 +57,13 @@ function renderCategories(){
 function tabsInner(c){
   var html=tabHtml("All", c.All, ui.activeCat==="All", false);
   state.categories.forEach(function(cat){ html+=tabHtml(cat, c[cat]||0, ui.activeCat===cat, true); });
-  html+='<div class="tab add" data-addcat="1">'+ICONS.plus+'<span>'+escapeHtml(t("newCategory"))+'</span></div>';
+  html+='<div class="tab add" data-addcat="1" tabindex="0" role="button" title="'+escapeHtml(t("newCategory"))+'">'+ICONS.plus+'<span>'+escapeHtml(t("newCategory"))+'</span></div>';
   return html;
 }
 function tabHtml(cat,n,active,removable){
-  return '<div class="tab'+(active?" active":"")+'" data-cat="'+escapeHtml(cat)+'" title="'+escapeHtml(catLabel(cat))+(removable?" — "+t("renameCat",{cat:catLabel(cat)}):"")+'">'+
+  return '<div class="tab'+(active?" active":"")+'" data-cat="'+escapeHtml(cat)+'" tabindex="0" role="tab" aria-selected="'+(active?"true":"false")+'" title="'+escapeHtml(catLabel(cat))+(removable?" — "+t("renameCat",{cat:catLabel(cat)}):"")+'">'+
     (removable?'<span class="cat-grip" data-cat-grip title="'+escapeHtml(t("dragReorder"))+'">'+ICONS.grip+'</span>':'')+
-    '<span class="lbl">'+escapeHtml(cat==="All"?allLabel():catLabel(cat))+'</span>'+
+    '<span class="lbl"'+categoryColorStyle(cat)+'>'+escapeHtml(cat==="All"?allLabel():catLabel(cat))+'</span>'+
     '<span class="count">'+n+'</span>'+
     (removable?'<span class="cat-rename" data-rename-cat="'+escapeHtml(cat)+'" title="'+escapeHtml(t("renameCat",{cat:catLabel(cat)}))+'">'+ICONS.edit+'</span>':'')+
     (removable?'<span class="x" data-del-cat="'+escapeHtml(cat)+'" title="'+escapeHtml(t("deleteCategory"))+'">'+ICONS.x+'</span>':'')+
@@ -79,7 +89,7 @@ function drawerItem(cat,n,active,removable){
   var nm=cat==="All"?allLabel():catLabel(cat);
   return '<div class="drawer-item'+(active?" active":"")+'" data-cat="'+escapeHtml(cat)+'" title="'+escapeHtml(nm)+'">'+
     (removable?'<span class="cat-grip" data-cat-grip title="'+escapeHtml(t("dragReorder"))+'">'+ICONS.grip+'</span>':'<span class="cat-grip ghost"></span>')+
-    '<div class="left">'+(cat==="All"?ICONS.layers:ICONS.folder)+'<span class="nm">'+escapeHtml(nm)+'</span></div>'+
+    '<div class="left">'+(cat==="All"?ICONS.layers:ICONS.folder)+'<span class="nm"'+categoryColorStyle(cat)+'>'+escapeHtml(nm)+'</span></div>'+
     '<span class="cnt">'+n+'</span>'+
     (removable?'<span class="cat-rename" data-rename-cat="'+escapeHtml(cat)+'" title="'+escapeHtml(t("renameCat",{cat:catLabel(cat)}))+'">'+ICONS.edit+'</span>':'<span></span>')+
     (removable?'<span class="x" data-del-cat="'+escapeHtml(cat)+'" title="'+escapeHtml(t("deleteCategory"))+'">'+ICONS.x+'</span>':'<span></span>')+
@@ -102,6 +112,19 @@ function closeDrawerOverlay(){ var d=$("#drawer"), bd=$("#drawerBackdrop"); if(d
     var item=e.target.closest("[data-cat]"); if(item){ setActiveCat(item.getAttribute("data-cat")); }
   });
   el.addEventListener("dblclick", function(e){ var it=e.target.closest("[data-cat]"); if(it){ var c=it.getAttribute("data-cat"); if(c!=="All") renameCategory(c); } });
+  // 键盘可达：Enter/Space 激活；方向键在标签/抽屉项之间移动焦点
+  el.addEventListener("keydown", function(e){
+    var item=e.target.closest("[data-cat],[data-addcat]"); if(!item) return;
+    if(e.key==="Enter"||e.key===" "){
+      e.preventDefault();
+      if(item.hasAttribute("data-addcat")) addCategory();
+      else setActiveCat(item.getAttribute("data-cat"));
+    } else if(e.key==="ArrowRight"||e.key==="ArrowDown"||e.key==="ArrowLeft"||e.key==="ArrowUp"){
+      var foc=$all("[data-cat],[data-addcat]",el), i=foc.indexOf(item); if(i<0) return;
+      var next=(e.key==="ArrowRight"||e.key==="ArrowDown")?foc[i+1]:foc[i-1];
+      if(next){ e.preventDefault(); next.focus(); }
+    }
+  });
 });
 // Track where a press began so a text-selection drag that ends outside a panel
 // doesn't count as an "outside click" and close the panel.
@@ -234,38 +257,65 @@ function fuzzyScore(q, hay){
   return 0;
 }
 function bookmarkHaystack(b){ return [b.title,b.url,prettyUrl(b.url),getDomain(b.url),b.category,b.description,(b.tags||[]).join(" ")].join(" "); }
+function bookmarkHasTag(b,tag){ if(!b.tags||!b.tags.length) return false; tag=String(tag).toLowerCase(); for(var i=0;i<b.tags.length;i++){ if(String(b.tags[i]).toLowerCase()===tag) return true; } return false; }
 function visibleBookmarks(){
-  var q=ui.query.trim();
-  var base=state.bookmarks.filter(function(b){ return ui.activeCat==="All" || b.category===ui.activeCat; });
-  if(!q) return base;
+  var q=ui.query.trim(), tag=ui.tagFilter;
+  var base=state.bookmarks.filter(function(b){
+    if(ui.activeCat!=="All" && b.category!==ui.activeCat) return false;
+    if(tag && !bookmarkHasTag(b,tag)) return false;
+    return true;
+  });
+  // 浏览态：置顶书签浮到顶部（稳定排序保留组内原有顺序）；搜索态保持相关度排序
+  if(!q) return base.slice().sort(function(a,b){ return (b.pinned?1:0)-(a.pinned?1:0); });
   return base.map(function(b,idx){ return {b:b,idx:idx,score:fuzzyScore(q,bookmarkHaystack(b))}; }).filter(function(x){ return x.score>0; }).sort(function(a,b){ return (b.score-a.score)||(a.idx-b.idx); }).map(function(x){ return x.b; });
 }
+function setTagFilter(tag){ ui.tagFilter=(ui.tagFilter===tag)?"":tag; renderContent(); }
+function clearTagFilter(){ if(ui.tagFilter){ ui.tagFilter=""; renderContent(); } }
+$("#resultTitle").addEventListener("click", function(e){ if(e.target.closest("[data-clear-tag]")) clearTagFilter(); });
 function renderContent(){
   var list=visibleBookmarks(), total=state.bookmarks.length, tt=$("#resultTitle");
   if(total===0){ tt.textContent=""; }
   else if(ui.query){ tt.innerHTML=nResults(list.length, escapeHtml(ui.query)); }
   else if(ui.activeCat==="All"){ tt.innerHTML="<b>"+list.length+"</b> "+nBookmarks(list.length).replace(/^\d+\s?/,""); }
   else { tt.innerHTML=nInCat(list.length, escapeHtml(catLabel(ui.activeCat))); }
+  if(total!==0 && ui.tagFilter){ tt.innerHTML+=' <button class="tag-filter-chip" data-clear-tag="1" title="'+escapeHtml(t("tagFilterClear"))+'">#'+escapeHtml(ui.tagFilter)+ICONS.x+'</button>'; }
 
   if(total===0){ return renderEmpty("first"); }
   if(list.length===0){ return renderEmpty("none"); }
   var isFirst=!_gridRendered;
+  // 视图（分类/搜索/标签/网格模式）变化时重置渲染上限
+  var viewKey=ui.activeCat+"|"+ui.query+"|"+ui.tagFilter+"|"+state.view;
+  if(viewKey!==_lastViewKey){ _renderLimit=RENDER_BASE; _lastViewKey=viewKey; }
+  var shown=list.length>_renderLimit?list.slice(0,_renderLimit):list;
   var cls="grid"+(state.view==="list"?" list2":"")+(ui.query?" searching":"")+(isFirst?" fresh":"");
   if(!isFirst) contentEl.style.opacity="0";
   var inner='<div class="'+cls+'" id="grid">';
-  list.forEach(function(b,i){ inner+=cardHtml(b,i); });
+  shown.forEach(function(b,i){ inner+=cardHtml(b,i); });
   inner+='</div>';
+  if(list.length>shown.length) inner+='<div class="grid-more" id="gridMore" role="button" tabindex="0"></div>';
   contentEl.innerHTML=inner; gridEl=$("#grid"); syncSelectionUI();
+  wireGridMore(list.length, shown.length);
   if(!isFirst) requestAnimationFrame(function(){ contentEl.style.opacity=""; });
   _gridRendered=true;
+}
+function gridLoadMore(){ _renderLimit+=RENDER_STEP; renderContent(); }
+function wireGridMore(total, shownN){
+  if(_gridMoreObserver){ _gridMoreObserver.disconnect(); _gridMoreObserver=null; }
+  var s=$("#gridMore"); if(!s) return;
+  s.textContent=t("showMore",{n:total-shownN});
+  if(window.IntersectionObserver){
+    _gridMoreObserver=new IntersectionObserver(function(es){ if(es[0]&&es[0].isIntersecting) gridLoadMore(); }, {rootMargin:"600px"});
+    _gridMoreObserver.observe(s);
+  }
 }
 function cardHtml(b,i){
   var dom=getDomain(b.url), hue=hashHue(dom||b.title), letter=(b.title||dom||"?").trim().charAt(0)||"?", fav=faviconUrl(b.url);
   var canDrag=(!ui.selectMode && !ui.query);
   var delay=state.settings.animations?(' style="animation-delay:'+(Math.min(i,28)*0.022).toFixed(3)+'s"'):'';
   var desc=b.description||"", pinned=!!b.pinned;
-  return '<div class="card'+(ui.selected[b.id]?" selected":"")+(pinned?" pinned":"")+'" data-id="'+escapeHtml(b.id)+'" data-desc="'+escapeHtml(desc)+'"'+delay+'>'+
+  return '<div class="card'+(ui.selected[b.id]?" selected":"")+(pinned?" pinned":"")+'" data-id="'+escapeHtml(b.id)+'" data-desc="'+escapeHtml(desc)+'" tabindex="0" role="link" aria-label="'+escapeHtml(b.title||dom)+'"'+delay+'>'+
     '<div class="check">'+ICONS.check+'</div>'+
+    '<button class="card-pin'+(pinned?" on":"")+'" data-pin="'+escapeHtml(b.id)+'" title="'+escapeHtml(pinned?t("unpin"):t("pinToTop"))+'" aria-label="'+escapeHtml(pinned?t("unpin"):t("pinToTop"))+'" aria-pressed="'+(pinned?"true":"false")+'">'+(pinned?ICONS.pinFill:ICONS.pin)+'</button>'+
     '<div class="fav" style="--c:'+hue+'"><span class="letter">'+escapeHtml(letter)+'</span>'+(fav?'<img class="fav-img" loading="lazy" alt="" src="'+escapeHtml(fav)+'"/>':'')+'</div>'+
     '<div class="meta">'+
       '<div class="name">'+
@@ -274,7 +324,7 @@ function cardHtml(b,i){
       '<div class="url">'+escapeHtml(prettyUrl(b.url))+'</div>'+
       (b.description?'<div class="desc">'+escapeHtml(b.description)+'</div>':'')+
       (ui.activeCat==="All"?'<span class="cat-chip">'+escapeHtml(catLabel(b.category))+'</span>':'')+
-      (b.tags&&b.tags.length?b.tags.slice(0,3).map(function(tg){ return '<span class="tag-chip">#'+escapeHtml(String(tg))+'</span>'; }).join(""):'')+
+      (b.tags&&b.tags.length?b.tags.slice(0,3).map(function(tg){ tg=String(tg); return '<span class="tag-chip'+(ui.tagFilter&&ui.tagFilter.toLowerCase()===tg.toLowerCase()?" on":"")+'" data-tag="'+escapeHtml(tg)+'" title="'+escapeHtml(t("filterByTag",{tag:tg}))+'">#'+escapeHtml(tg)+'</span>'; }).join(""):'')+
     '</div>'+      (canDrag?'<span class="card-grip" title="'+escapeHtml(t("dragReorder"))+'">'+ICONS.grip+'</span>':'')+
     '<div class="card-actions">'+
       '<button data-edit="'+escapeHtml(b.id)+'" title="'+escapeHtml(t("editBookmark"))+'">'+ICONS.edit+'</button>'+

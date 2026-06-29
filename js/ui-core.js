@@ -24,7 +24,7 @@ function toastUndo(msg, undoFn){
 function openOverlay(id){ $("#"+id).classList.add("open"); }
 function closeOverlay(id){ $("#"+id).classList.remove("open"); }
 function closeAll(){
-  var ids=["bmOverlay","promptOverlay","confirmOverlay","summaryOverlay","importOverlay","settingsOverlay","trashOverlay","suggestOverlay"];
+  var ids=["bmOverlay","promptOverlay","confirmOverlay","summaryOverlay","importOverlay","settingsOverlay","trashOverlay","healthOverlay","suggestOverlay"];
   if(typeof summaryUi!=="undefined"&&summaryUi.running) ids=ids.filter(function(id){ return id!=="summaryOverlay"; });
   ids.forEach(closeOverlay); confirmCb=null; promptCb=null;
 }
@@ -52,8 +52,23 @@ function openPrompt(title,value,cb,opts){
     $("#promptPinTitle").textContent=opts.pinTitle||"";
     $("#promptPinDesc").textContent=opts.pinDesc||"";
   }
+  var colorRow=$("#promptColorRow");
+  if(colorRow){
+    var color=opts.colorValue||"";
+    colorRow.style.display=opts.color?"":"none";
+    colorRow.setAttribute("data-enabled", color?"1":"0");
+    $("#promptColor").value=color||"#6d5efc";
+    $("#promptColorTitle").textContent=opts.colorTitle||"";
+    $("#promptColorDesc").textContent=opts.colorDesc||"";
+  }
   promptCb=cb; openOverlay("promptOverlay"); setTimeout(function(){ inp.focus(); inp.select(); },50);
 }
-function submitPrompt(){ var v=$("#promptInput").value.trim(), pin=$("#promptPin"); closeOverlay("promptOverlay"); if(promptCb){ promptCb(v, pin&&pin.checked); promptCb=null; } }
+function submitPrompt(){
+  var v=$("#promptInput").value.trim(), pin=$("#promptPin"), colorRow=$("#promptColorRow"), color="";
+  if(colorRow&&colorRow.style.display!=="none"&&colorRow.getAttribute("data-enabled")==="1") color=$("#promptColor").value||"";
+  closeOverlay("promptOverlay"); if(promptCb){ promptCb(v, pin&&pin.checked, color); promptCb=null; }
+}
 $("#promptSave").addEventListener("click", submitPrompt);
 $("#promptInput").addEventListener("keydown", function(e){ if(e.key==="Enter") submitPrompt(); });
+$("#promptColor").addEventListener("input", function(){ var row=$("#promptColorRow"); if(row) row.setAttribute("data-enabled","1"); });
+$("#promptColorReset").addEventListener("click", function(){ var row=$("#promptColorRow"); if(row) row.setAttribute("data-enabled","0"); $("#promptColor").value="#6d5efc"; });

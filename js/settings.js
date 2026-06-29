@@ -2,7 +2,8 @@
 "use strict";
 
 /* ===== settings ===== */
-function openSettings(){
+function openSettings(tab){
+  tab=validSetTab(tab)?tab:"general";
   var s=state.settings;
   $("#setName").value=s.appName||"";
   $("#setTag").value=s.tagline||"";
@@ -17,13 +18,15 @@ function openSettings(){
   $("#setAiKey").value=s.aiKey||"";
   $all('#aiProvSeg [data-aiprov]').forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-aiprov")===(s.aiProvider||"local")); });
   $("#setGlass").checked=s.glass!==false;
+  if($("#setPrivacy")) $("#setPrivacy").checked=!!s.privacy;
+  updateStorageUsage();
   if($("#setHideHeader")) $("#setHideHeader").checked=!!s.hideHeaderOnScroll;
   if(typeof syncMonitorUI==="function") syncMonitorUI();
   if(typeof syncProfileEditor==="function") syncProfileEditor();
   if(typeof syncLogRetentionUI==="function") syncLogRetentionUI();
   if(typeof renderOpLog==="function") renderOpLog();
   if(typeof applyPwaReaderSettingsVisibility==="function") applyPwaReaderSettingsVisibility();
-  syncBgUI(); updateSyncUI(); openOverlay("settingsOverlay");
+  syncBgUI(); updateSyncUI(); setActiveSetTab(tab); openOverlay("settingsOverlay");
   wireSettingsScrollGuard();
 }
 
@@ -34,7 +37,16 @@ $("#aiProvSeg").addEventListener("click", function(e){
   $all('#aiProvSeg [data-aiprov]').forEach(function(x){ x.classList.toggle("on", x===b); });
 });
 $("#setAiKey").addEventListener("input", function(e){ state.settings.aiKey=e.target.value.trim(); save(); });
-$("#customizeWidgets").addEventListener("click", openSettings); $("#brand").addEventListener("click", openSettings);
+if($("#setPrivacy")) $("#setPrivacy").addEventListener("change", function(e){ state.settings.privacy=e.target.checked; save(); render(); toast(e.target.checked?t("privacyOn"):t("privacyOff"), "ok"); });
+function updateStorageUsage(){
+  if(typeof storageInfo!=="function") return;
+  var info=storageInfo(), desc=$("#storageUsageDesc"), fill=$("#storageBarFill"), val=$("#storageUsageVal");
+  if(val) val.textContent=info.kb+" KB · "+info.pct+"%";
+  if(fill){ fill.style.width=Math.max(2,info.pct)+"%"; fill.className=info.pct>=85?"full":info.pct>=60?"warn":""; }
+  if(desc) desc.textContent=t("storageUsageDesc",{kb:info.kb,pct:info.pct});
+}
+$("#customizeWidgets").addEventListener("click", function(){ openSettings("dashboard"); });
+$("#brand").addEventListener("click", function(){ openSettings("general"); });
 $("#setName").addEventListener("input", function(e){ state.settings.appName=e.target.value; renderBrand(); save(); });
 $("#setTag").addEventListener("input", function(e){ state.settings.tagline=e.target.value; renderBrand(); save(); });
 $("#motionSeg").addEventListener("click", function(e){ var b=e.target.closest("[data-motion]"); if(!b) return; setMotionMode(b.getAttribute("data-motion")); });
@@ -79,7 +91,11 @@ $("#logoInput").addEventListener("change", function(e){
 function setLang(lang){ if(LANGS.indexOf(lang)===-1) lang="en"; state.settings.lang=lang; save(); applyI18n(); render(); updateSyncUI(); if(typeof syncLogRetentionUI==="function") syncLogRetentionUI(); if(typeof renderOpLog==="function") renderOpLog(); }
 
 /* 设置页分类切换 */
+function validSetTab(tab){
+  return ["general","sync","appearance","dashboard","services","log"].indexOf(tab)>-1;
+}
 function setActiveSetTab(tab){
+  tab=validSetTab(tab)?tab:"general";
   $all("#setTabs [data-settab]").forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-settab")===tab); });
   $all(".set-tab").forEach(function(p){ p.classList.toggle("on", p.getAttribute("data-tab")===tab); });
   var wrap=$(".set-tab-wrap"); if(wrap) wrap.scrollTop=0;

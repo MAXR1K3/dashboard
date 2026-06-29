@@ -3,6 +3,7 @@
 "use strict";
 
 var _healthRun=null;
+var healthIssueFilter="all";
 
 function healthTip(b){
   if(!b.health||!b.health.status||b.health.status==="unknown") return t("hUnknown");
@@ -53,7 +54,8 @@ function healthCheckAll(){
     updateHealthDot(b);
     if(done>=total){
       _healthRun=null; save(); renderContent();
-      toast(t("healthDone",{ok:counts.ok,warn:counts.warn,bad:counts.bad}), counts.bad?"":"ok");
+      toast(t("healthDone",{ok:counts.ok,warn:counts.warn,bad:counts.bad}), (counts.bad||counts.warn)?"":"ok");
+      if(counts.bad||counts.warn) openHealthIssues();
       return;
     }
     next();
@@ -73,4 +75,72 @@ function setBookmarkHealth(id,status){
   if(!status||status==="unknown") delete b.health;
   else b.health={status:status,ts:Date.now(),manual:true};
   save(); renderContent(); toast(t("statusUpdated"),"ok");
+  if($("#healthOverlay")&&$("#healthOverlay").classList.contains("open")) renderHealthIssues();
 }
+
+function healthIssueBookmarks(){
+  return state.bookmarks.filter(function(b){
+    var st=b.health&&b.health.status;
+    if(st!=="bad"&&st!=="warn") return false;
+    return healthIssueFilter==="all" || st===healthIssueFilter;
+  });
+}
+function healthIssueCounts(){
+  var out={bad:0,warn:0};
+  state.bookmarks.forEach(function(b){ var st=b.health&&b.health.status; if(st==="bad") out.bad++; else if(st==="warn") out.warn++; });
+  return out;
+}
+function healthStatusLabel(st){ return st==="bad"?t("healthIssueBad"):st==="warn"?t("healthIssueWarn"):t("hUnknown"); }
+function renderHealthIssues(){
+  var listEl=$("#healthIssueList"); if(!listEl) return;
+  var counts=healthIssueCounts(), list=healthIssueBookmarks();
+  $all("#healthIssueFilter [data-health-filter]").forEach(function(b){
+    var f=b.getAttribute("data-health-filter"), n=f==="bad"?counts.bad:(f==="warn"?counts.warn:(counts.bad+counts.warn));
+    b.classList.toggle("on", f===healthIssueFilter);
+    b.innerHTML='<span>'+escapeHtml(f==="all"?t("healthIssueAll"):(f==="bad"?t("healthIssueBad"):t("healthIssueWarn")))+'</span><span class="health-count">'+escapeHtml(n)+'</span>';
+  });
+  if(!counts.bad&&!counts.warn){
+    listEl.innerHTML='<div class="w-empty">'+escapeHtml(t("healthIssueEmpty"))+'</div>';
+    return;
+  }
+  if(!list.length){
+    listEl.innerHTML='<div class="w-empty">'+escapeHtml(t("healthIssueFilteredEmpty"))+'</div>';
+    return;
+  }
+  listEl.innerHTML=list.map(function(b){
+    var st=b.health&&b.health.status, dom=getDomain(b.url), hue=hashHue(dom||b.title), letter=(b.title||dom||"?").trim().charAt(0)||"?";
+    var ago=(typeof timeAgo==="function"&&b.health&&b.health.ts)?timeAgo(b.health.ts):"";
+    return '<div class="health-item '+escapeHtml(st)+'" data-id="'+escapeHtml(b.id)+'">'+
+      '<div class="fav" style="--c:'+hue+'"><span class="letter">'+escapeHtml(letter)+'</span></div>'+
+      '<div class="min0"><div class="tt">'+escapeHtml(b.title||dom)+'</div>'+
+        '<div class="tu">'+escapeHtml(prettyUrl(b.url))+'</div>'+
+        '<div class="texp"><span class="health-badge '+escapeHtml(st)+'">'+escapeHtml(healthStatusLabel(st))+'</span> '+escapeHtml(catLabel(b.category))+(ago?" · "+escapeHtml(ago):"")+(b.health&&b.health.manual?" · "+escapeHtml(t("healthManual")):"")+'</div></div>'+
+      '<div class="acts">'+
+        '<button class="btn sm" data-health-open="'+escapeHtml(b.id)+'">'+escapeHtml(t("healthIssueOpen"))+'</button>'+
+        '<button class="btn sm" data-health-edit="'+escapeHtml(b.id)+'">'+escapeHtml(t("healthIssueEdit"))+'</button>'+
+        '<button class="btn sm" data-health-ok="'+escapeHtml(b.id)+'">'+escapeHtml(t("healthSetOk"))+'</button>'+
+        '<button class="btn sm danger" data-health-delete="'+escapeHtml(b.id)+'">'+escapeHtml(t("delete"))+'</button>'+
+      '</div></div>';
+  }).join("");
+}
+function openHealthIssues(){
+  healthIssueFilter="all";
+  renderHealthIssues();
+  openOverlay("healthOverlay");
+}
+
+$("#healthIssueFilter").addEventListener("click", function(e){
+  var b=e.target.closest("[data-health-filter]"); if(!b) return;
+  healthIssueFilter=b.getAttribute("data-health-filter")||"all";
+  renderHealthIssues();
+});
+$("#healthRecheckBtn").addEventListener("click", healthCheckAll);
+$("#healthIssueList").addEventListener("click", function(e){
+  var idBtn=e.target.closest("[data-health-open],[data-health-edit],[data-health-ok],[data-health-delete]");
+  if(!idBtn) return;
+  var id=idBtn.getAttribute("data-health-open")||idBtn.getAttribute("data-health-edit")||idBtn.getAttribute("data-health-ok")||idBtn.getAttribute("data-health-delete");
+  if(idBtn.hasAttribute("data-health-open")){ openBookmark(id); return; }
+  if(idBtn.hasAttribute("data-health-edit")){ closeOverlay("healthOverlay"); openEdit(id); return; }
+  if(idBtn.hasAttribute("data-health-ok")){ setBookmarkHealth(id,"ok"); return; }
+  if(idBtn.hasAttribute("data-health-delete")){ deleteBookmark(id); renderHealthIssues(); }
+});
